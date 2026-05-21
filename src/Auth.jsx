@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
 import LottiePackage from 'lottie-react';
-const Lottie = LottiePackage.default || LottiePackage;
 import animationData from './background-animation.json'; // Make sure this matches your JSON file name!
+
+// 🔥 Correct placement: AFTER imports
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const Lottie = LottiePackage.default || LottiePackage;
 
 export default function Auth({ onLogin, onGoToAdmin }) {
   const [isLogin, setIsLogin] = useState(true);
@@ -21,7 +24,8 @@ export default function Auth({ onLogin, onGoToAdmin }) {
     const endpoint = isLogin ? '/api/login' : '/api/register';
     
     try {
-      const res = await fetch(`http://localhost:5000${endpoint}`, {
+      // 🔥 UPDATED: Uses the dynamic API_URL
+      const res = await fetch(`${API_URL}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
@@ -171,8 +175,8 @@ export default function Auth({ onLogin, onGoToAdmin }) {
             if (!pin) return; // User clicked cancel
 
             try {
-              // Ask the backend if the PIN is correct!
-              const res = await fetch('http://localhost:5000/api/verify-admin', {
+              // 🔥 UPDATED: Uses the dynamic API_URL
+              const res = await fetch(`${API_URL}/api/verify-admin`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ pin })
