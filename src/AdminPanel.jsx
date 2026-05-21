@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 
+// 🔥 NEW: Dynamic API URL injected safely
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 export default function AdminPanel({ onStartExam }) {
   // --- MASTER ADMIN STATE ---
   const [activeTab, setActiveTab] = useState('blueprint'); // 'blueprint', 'editor', or 'manager'
@@ -47,7 +50,7 @@ export default function AdminPanel({ onStartExam }) {
 
   // Load Blueprint Meta on Mount
   useEffect(() => {
-    fetch('http://localhost:5000/api/blueprint-meta')
+    fetch(`${API_URL}/api/blueprint-meta`)
       .then(res => res.json())
       .then(data => {
         setMeta(data);
@@ -73,7 +76,7 @@ export default function AdminPanel({ onStartExam }) {
   useEffect(() => {
     if (activeTab === 'manager') {
       setIsManagerLoading(true);
-      fetch('http://localhost:5000/api/published-tests')
+      fetch(`${API_URL}/api/published-tests`)
         .then(res => res.json())
         .then(data => {
           setManagerTests(data);
@@ -101,7 +104,7 @@ export default function AdminPanel({ onStartExam }) {
 
   const handleGenerate = () => {
     setGenerating(true);
-    fetch('http://localhost:5000/api/generate-blueprint', {
+    fetch(`${API_URL}/api/generate-blueprint`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ blueprint, testCount })
@@ -139,7 +142,7 @@ export default function AdminPanel({ onStartExam }) {
       // Loop through all generated tests and publish them one by one!
       for (let i = 0; i < totalTests; i++) {
         const testTitle = totalTests > 1 ? `${baseTitle} - Part ${i + 1}` : baseTitle;
-        await fetch('http://localhost:5000/api/publish-test', {
+        await fetch(`${API_URL}/api/publish-test`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ title: testTitle, isPremium, testData: result.mockTests[i] })
@@ -160,7 +163,7 @@ export default function AdminPanel({ onStartExam }) {
   const handleSearch = async () => {
     setIsSearching(true);
     try {
-      const res = await fetch(`http://localhost:5000/api/search-questions?paperType=${searchPaper}&query=${encodeURIComponent(searchQuery)}`);
+      const res = await fetch(`${API_URL}/api/search-questions?paperType=${searchPaper}&query=${encodeURIComponent(searchQuery)}`);
       const data = await res.json();
       setSearchResults(data);
       setEditingQuestion(null);
@@ -176,7 +179,7 @@ export default function AdminPanel({ onStartExam }) {
     setIsSavingEdit(true);
     try {
       const endpoint = isCreatingNew ? '/api/add-question' : '/api/update-question';
-      const res = await fetch(`http://localhost:5000${endpoint}`, {
+      const res = await fetch(`${API_URL}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editingQuestion)
@@ -216,7 +219,7 @@ export default function AdminPanel({ onStartExam }) {
   const saveManagedTest = async () => {
     setIsSavingManager(true);
     try {
-      const res = await fetch('http://localhost:5000/api/update-mock-test', {
+      const res = await fetch(`${API_URL}/api/update-mock-test`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
