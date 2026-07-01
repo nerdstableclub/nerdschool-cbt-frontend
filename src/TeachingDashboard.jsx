@@ -99,7 +99,7 @@ export default function TeachingDashboard() {
   const [revealedCount, setRevealedCount] = useState(0);
   const [saveStatus, setSaveStatus] = useState('idle'); 
 
-  // 🔥 UPGRADED SPAWN FORM STATE (Added Video Data)
+  // SPAWN FORM STATE
   const [isSpawning, setIsSpawning] = useState(false);
   const [spawnForm, setSpawnForm] = useState({ 
     paper_id: 'Introduction', 
@@ -114,7 +114,10 @@ export default function TeachingDashboard() {
   const [collapsedLMS, setCollapsedLMS] = useState({}); 
   const [isMediaBayOpen, setIsMediaBayOpen] = useState(false);
   const [isAssetMenuOpen, setIsAssetMenuOpen] = useState(false); 
+  
+  // 🔥 NEW: MCQ State and Updated Asset State
   const [newAsset, setNewAsset] = useState({ title: '', type: 'image', payload: '' });
+  const [mcqForm, setMcqForm] = useState({ question: '', optA: '', optB: '', optC: '', optD: '', correct: 'A', explanation: '' });
   const [newPrePoint, setNewPrePoint] = useState('');
 
   const ACCESS_PLANS = [
@@ -213,7 +216,6 @@ export default function TeachingDashboard() {
           linkingCode: liveLinkingCode, 
           macroTrigger: macroTriggerPayload,
           synapseNotes: synapseNotes,
-          // Push existing video data so it doesn't get erased on save
           masterVideo: currentStep.master_video || '',
           videoTimestamp: currentStep.video_timestamp || ''
         })
@@ -261,7 +263,7 @@ export default function TeachingDashboard() {
         chapter_title: currentStep.chapter_title,
         index_title: currentStep.index_title.endsWith('(Cont.)') ? currentStep.index_title : currentStep.index_title + ' (Cont.)',
         required_plan: currentStep.Required_Plan || currentStep.required_plan || 'Free',
-        master_video: currentStep.master_video || '', // Carry over video!
+        master_video: currentStep.master_video || '',
         video_timestamp: currentStep.video_timestamp || ''
       };
       const res = await fetch(`${API_URL}/api/create-slide`, {
@@ -337,7 +339,8 @@ export default function TeachingDashboard() {
 
   const getYoutubeId = (url) => {
     if(!url) return null;
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    if (url.length === 11 && !url.includes('/') && !url.includes('?')) return url;
+    const regExp = /^.*(youtu.be\/|live\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
     const match = url.match(regExp);
     return (match && match[2].length === 11) ? match[2] : null;
   };
@@ -359,11 +362,27 @@ export default function TeachingDashboard() {
     } catch { return []; }
   })();
 
+  // 🔥 UPGRADED: Handles Saving both Standard Assets and Custom MCQs
   const handleAddAsset = () => {
-    if (!newAsset.title || !newAsset.payload) return alert("Title and Content/UID are required!");
-    const updatedAssets = [...currentAssets, { id: Date.now().toString(), ...newAsset }];
+    let finalPayload = newAsset.payload;
+
+    if (newAsset.type === 'custom_mcq') {
+      if (!newAsset.title) return alert("Please provide a Button Label for this MCQ!");
+      if (!mcqForm.question || !mcqForm.optA || !mcqForm.optB || !mcqForm.optC || !mcqForm.optD) {
+        return alert("Please fill out the question text and all 4 options!");
+      }
+      // Stringify the MCQ object so it can be saved in the database
+      finalPayload = JSON.stringify(mcqForm);
+    } else {
+      if (!newAsset.title || !newAsset.payload) return alert("Title and Content/UID are required!");
+    }
+
+    const updatedAssets = [...currentAssets, { id: Date.now().toString(), title: newAsset.title, type: newAsset.type, payload: finalPayload }];
     commitToCloud(updatedAssets);
+    
+    // Reset forms
     setNewAsset({ title: '', type: 'image', payload: '' });
+    setMcqForm({ question: '', optA: '', optB: '', optC: '', optD: '', correct: 'A', explanation: '' });
   };
 
   const handleRemoveAsset = (idToRemove) => {
@@ -381,6 +400,11 @@ export default function TeachingDashboard() {
   }, {});
 
   const toggleLMS = (key) => setCollapsedLMS(p => ({ ...p, [key]: !p[key] }));
+
+  // Helper for dynamic icons
+  const getAssetIcon = (type) => {
+    return type === 'svg' ? '🧬' : type === 'youtube' ? '▶️' : type === 'question' ? '❓' : type === 'custom_mcq' ? '📝' : type === 'code' ? '💻' : type === 'mnemonic' ? '🧠' : '🖼️';
+  };
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -504,7 +528,6 @@ export default function TeachingDashboard() {
             </select>
           </div>
 
-          {/* 🔥 NEW VIDEO FIELDS IN THE INITIALIZER */}
           <div className="grid grid-cols-3 gap-2">
             <div className="col-span-2">
               <label className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">YouTube Master VOD</label>
@@ -569,7 +592,7 @@ export default function TeachingDashboard() {
                       {!collapsedLMS[chapKey] && slides.map(slide => {
                         const isActive = slide.originalIndex === activeIdx && !isSpawning && !isMediaBayOpen;
                         
-                        // 🔥 INLINE EDITING: NOW INCLUDES VIDEO AND TIMESTAMP
+                        // INLINE EDITING
                         if (editingSlide?.step_id === slide.step_id) {
                           return (
                             <div key={slide.step_id} className="ml-2 p-2 bg-indigo-50 border border-indigo-200 rounded-md shadow-sm mb-1">
@@ -662,7 +685,6 @@ export default function TeachingDashboard() {
                   </span>
                 )}
                 
-                {/* SHOW ADMIN IF VIDEO IS ATTACHED */}
                 {currentStep.master_video && (
                   <span className="ml-2 text-[9px] font-black uppercase tracking-widest bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full border border-rose-200 shadow-sm flex items-center gap-1">
                     <span>▶️</span> {currentStep.video_timestamp || '0m0s'}
@@ -724,7 +746,7 @@ export default function TeachingDashboard() {
                         <div key={asset.id} className="bg-white border border-slate-200 p-3 rounded-xl shadow-sm flex items-center justify-between">
                           <div className="flex items-center gap-2 overflow-hidden">
                             <span className="text-xl">
-                              {asset.type === 'svg' ? '🧬' : asset.type === 'youtube' ? '▶️' : asset.type === 'question' ? '❓' : asset.type === 'code' ? '💻' : asset.type === 'mnemonic' ? '🧠' : '🖼️'}
+                              {getAssetIcon(asset.type)}
                             </span>
                             <span className="font-bold text-slate-700 text-sm truncate">{asset.title}</span>
                           </div>
@@ -734,13 +756,14 @@ export default function TeachingDashboard() {
                       {currentAssets.length === 0 && <div className="col-span-2 text-center p-3 bg-slate-50 border border-dashed border-slate-300 rounded-xl text-slate-400 font-mono text-xs">No media or question assets queued yet.</div>}
                     </div>
 
+                    {/* 🔥 THE UPGRADED ASSET BUILDER FORMS */}
                     <div className="w-full bg-slate-50 p-5 rounded-2xl border border-slate-200 shadow-sm text-left overflow-visible relative">
                       <div className="grid grid-cols-2 gap-3 mb-3">
                         <div>
                           <label className="text-[9px] font-mono font-bold text-slate-400 uppercase">Button Label</label>
                           <input 
                             type="text" 
-                            placeholder="e.g. Q1: Hegemony Poll" 
+                            placeholder="e.g. Concept Check" 
                             value={newAsset.title} 
                             onChange={e => setNewAsset(prev => ({...prev, title: e.target.value}))} 
                             className="w-full mt-1 p-2 bg-white border border-slate-300 rounded font-bold text-xs outline-none focus:border-indigo-600" 
@@ -753,17 +776,48 @@ export default function TeachingDashboard() {
                             onChange={e => setNewAsset(prev => ({...prev, type: e.target.value, payload: ''}))} 
                             className="w-full mt-1 p-2 bg-white border border-slate-300 rounded font-bold text-xs outline-none focus:border-indigo-600"
                           >
-                            <option value="image">Image (.jpg/.png URL)</option>
-                            <option value="svg">Raw HTML / SVG Code</option>
-                            <option value="youtube">YouTube Video URL</option>
+                            <option value="image">🖼️ Image (.jpg/.png URL)</option>
+                            <option value="svg">🧬 Raw HTML / SVG Code</option>
+                            <option value="youtube">▶️ YouTube Video URL</option>
                             <option value="mnemonic">🧠 Memory Hack / Mnemonic</option>
                             <option value="code">💻 Syntax / Code Block</option>
+                            <option value="custom_mcq">📝 Custom MCQ Test</option>
                             <option value="question">❓ Live PYQ Search</option>
                           </select>
                         </div>
                       </div>
                       
-                      {newAsset.type === 'question' ? (
+                      {/* DYNAMIC FORM RENDERER BASED ON ASSET TYPE */}
+                      {newAsset.type === 'custom_mcq' ? (
+                        <div className="mb-4 space-y-2 bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+                          <label className="text-[10px] font-mono font-bold text-indigo-600 uppercase">MCQ Builder</label>
+                          <textarea placeholder="Type your Question here..." value={mcqForm.question} onChange={e => setMcqForm({...mcqForm, question: e.target.value})} rows="2" className="w-full p-2 bg-slate-50 border border-slate-300 rounded font-semibold text-sm outline-none focus:border-indigo-600" />
+                          
+                          <div className="grid grid-cols-2 gap-2 mt-2">
+                            <input type="text" placeholder="Option A" value={mcqForm.optA} onChange={e => setMcqForm({...mcqForm, optA: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-300 rounded text-xs font-semibold outline-none focus:border-indigo-600" />
+                            <input type="text" placeholder="Option B" value={mcqForm.optB} onChange={e => setMcqForm({...mcqForm, optB: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-300 rounded text-xs font-semibold outline-none focus:border-indigo-600" />
+                            <input type="text" placeholder="Option C" value={mcqForm.optC} onChange={e => setMcqForm({...mcqForm, optC: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-300 rounded text-xs font-semibold outline-none focus:border-indigo-600" />
+                            <input type="text" placeholder="Option D" value={mcqForm.optD} onChange={e => setMcqForm({...mcqForm, optD: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-300 rounded text-xs font-semibold outline-none focus:border-indigo-600" />
+                          </div>
+
+                          <div className="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-slate-100">
+                            <div>
+                              <label className="text-[9px] font-mono font-bold text-slate-400 uppercase">Correct Answer</label>
+                              <select value={mcqForm.correct} onChange={e => setMcqForm({...mcqForm, correct: e.target.value})} className="w-full mt-1 p-2 bg-emerald-50 border border-emerald-300 text-emerald-800 rounded font-bold text-xs outline-none focus:border-emerald-600">
+                                <option value="A">Option A</option>
+                                <option value="B">Option B</option>
+                                <option value="C">Option C</option>
+                                <option value="D">Option D</option>
+                              </select>
+                            </div>
+                            <div className="col-span-2">
+                              <label className="text-[9px] font-mono font-bold text-slate-400 uppercase">Explanation (Optional)</label>
+                              <input type="text" placeholder="Why is this correct?" value={mcqForm.explanation} onChange={e => setMcqForm({...mcqForm, explanation: e.target.value})} className="w-full mt-1 p-2 bg-slate-50 border border-slate-300 rounded font-mono text-xs outline-none focus:border-indigo-600" />
+                            </div>
+                          </div>
+                        </div>
+
+                      ) : newAsset.type === 'question' ? (
                         <PyqSearchEngine onSelect={(qObj) => {
                           setNewAsset(prev => ({
                             ...prev, 
@@ -788,7 +842,7 @@ export default function TeachingDashboard() {
                         </div>
                       )}
 
-                      <button onClick={handleAddAsset} className="w-full py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs rounded shadow-sm transition-colors">➕ SAVE ASSET TO CLOUD</button>
+                      <button onClick={handleAddAsset} className="w-full py-3 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs rounded-lg shadow-sm transition-colors">➕ SAVE ASSET TO CLOUD</button>
                     </div>
                   </div>
 
@@ -853,9 +907,9 @@ export default function TeachingDashboard() {
                       chromaMode ? 'bg-[#00FF00] border-none' : 'bg-white/95 backdrop-blur-xl border border-slate-200'
                     }`}>
                       
-                      <span className={`absolute top-3.5 left-6 text-[10px] font-black tracking-widest uppercase z-10 px-2.5 py-1 rounded ${
+                      <span className={`absolute top-3.5 left-6 text-[10px] font-black tracking-widest uppercase z-10 px-2.5 py-1 rounded flex items-center gap-2 ${
                         chromaMode ? 'bg-slate-900 text-[#00FF00]' : 'bg-slate-100 text-slate-500 border border-slate-200'
-                      }`}>{triggerAsset.title}</span>
+                      }`}><span>{getAssetIcon(triggerAsset.type)}</span> {triggerAsset.title}</span>
 
                       <div className="absolute top-2.5 right-6 flex items-center gap-2 z-20">
                         {['image', 'svg'].includes(triggerAsset.type) && (
@@ -878,10 +932,12 @@ export default function TeachingDashboard() {
                       <div className="mt-12 mb-2 w-full overflow-auto custom-scrollbar max-h-[74vh] text-center p-2">
                         {triggerAsset.type === 'youtube' && getYoutubeId(triggerAsset.payload) ? (
                           <iframe width="850" height="480" src={`https://www.youtube.com/embed/${getYoutubeId(triggerAsset.payload)}?autoplay=1`} frameBorder="0" allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen className="rounded-xl border border-slate-200 shadow-md max-w-full inline-block align-middle" />
+                        
                         ) : triggerAsset.type === 'image' ? (
                           <div style={{ width: `${overlayZoom * 100}%` }} className="inline-block align-middle transition-all duration-150">
                             <img src={triggerAsset.payload} alt={triggerAsset.title} className={overlayZoom === 1 ? "max-h-[68vh] max-w-full object-contain rounded border border-slate-200 mx-auto" : "w-full h-auto rounded shadow-lg mx-auto"} />
                           </div>
+                        
                         ) : triggerAsset.type === 'question' ? (
                           <div className={`w-full max-w-3xl rounded-2xl p-8 text-left font-mono animate-fade-in inline-block align-middle ${
                             chromaMode ? 'bg-transparent text-white drop-shadow-xl' : 'bg-white text-slate-900 border border-slate-200 shadow-xl'
@@ -889,6 +945,43 @@ export default function TeachingDashboard() {
                             <div className={`flex items-center justify-between border-b pb-3 mb-6 ${chromaMode ? 'border-slate-800' : 'border-slate-200'}`}><span className={`text-[11px] font-black tracking-widest px-3 py-1 rounded-md uppercase border ${chromaMode ? 'bg-slate-900 text-[#00FF00] border-slate-900' : 'bg-indigo-50 text-indigo-600 border-indigo-100'}`}>⚠️ NERDSCHOOL EXAM INTEL</span><span className={`text-[10px] font-bold ${chromaMode ? 'text-slate-800' : 'text-slate-500'}`} style={videoTextArmor}>UGC NET TREND ANALYSIS</span></div>
                             <p className="text-xl md:text-2xl font-bold leading-relaxed whitespace-pre-wrap tracking-tight" style={videoTextArmor}>Question Target UID: {triggerAsset.payload}</p>
                           </div>
+                        
+                        ) : triggerAsset.type === 'custom_mcq' ? (
+                          // 🔥 THE NEW MCQ TEACHER PREVIEW RENDERER
+                          <div className={`w-full max-w-3xl rounded-2xl p-8 text-left animate-fade-in inline-block align-middle shadow-xl border ${
+                            chromaMode ? 'bg-slate-900 text-white border-slate-700' : 'bg-white text-slate-900 border-slate-200'
+                          }`}>
+                            <div className={`flex items-center justify-between border-b pb-3 mb-6 ${chromaMode ? 'border-slate-800' : 'border-slate-200'}`}>
+                              <span className="text-[11px] font-black tracking-widest px-3 py-1 rounded-md uppercase border bg-amber-100 text-amber-800 border-amber-200">📝 TEACHER PREVIEW: CUSTOM MCQ</span>
+                            </div>
+                            
+                            <p className="text-xl md:text-2xl font-bold leading-relaxed whitespace-pre-wrap mb-6" style={videoTextArmor}>
+                              {JSON.parse(triggerAsset.payload || '{}').question}
+                            </p>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
+                              {['A', 'B', 'C', 'D'].map(opt => {
+                                const mcqData = JSON.parse(triggerAsset.payload || '{}');
+                                const isCorrect = mcqData.correct === opt;
+                                return (
+                                  <div key={opt} className={`p-4 rounded-xl border-2 text-sm font-bold flex items-center gap-3 ${
+                                    isCorrect ? 'bg-emerald-50 border-emerald-400 text-emerald-800' : 'bg-slate-50 border-slate-200 text-slate-600'
+                                  }`}>
+                                    <span className={`h-6 w-6 flex items-center justify-center rounded-full text-xs shrink-0 ${isCorrect ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-500'}`}>{opt}</span>
+                                    <span>{mcqData[`opt${opt}`]}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                            
+                            {JSON.parse(triggerAsset.payload || '{}').explanation && (
+                              <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-xl text-sm text-indigo-900">
+                                <strong className="font-black text-indigo-600 block mb-1">TEACHER EXPLANATION:</strong> 
+                                {JSON.parse(triggerAsset.payload || '{}').explanation}
+                              </div>
+                            )}
+                          </div>
+
                         ) : (
                           <div 
                             style={{ width: `${overlayZoom * 100}%` }} 
@@ -984,7 +1077,7 @@ export default function TeachingDashboard() {
                 <div className="absolute bottom-[calc(100%+12px)] right-0 w-64 bg-white border border-slate-200 rounded-xl shadow-2xl p-2 z-[110] flex flex-col gap-1 animate-fade-in">
                   <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-2 pb-1.5 border-b border-slate-100 mb-1">Queued Overlays</div>
                   {currentAssets.map(asset => (
-                    <button key={asset.id} onClick={() => { setActiveOverlay(activeOverlay === asset.id ? null : asset.id); setOverlayZoom(1); setIsAssetMenuOpen(false); }} className={`text-left px-3 py-2.5 rounded-lg font-bold text-xs transition-all flex items-center gap-2.5 ${activeOverlay === asset.id ? 'bg-slate-900 text-white shadow-inner' : 'hover:bg-slate-50 text-slate-700'}`}><span className="text-sm shrink-0">{asset.type === 'svg' ? '🧬' : asset.type === 'youtube' ? '▶️' : asset.type === 'question' ? '❓' : asset.type === 'code' ? '💻' : asset.type === 'mnemonic' ? '🧠' : '🖼️'}</span><span className="truncate leading-none pt-0.5">{asset.title}</span>{activeOverlay === asset.id && <span className="ml-auto text-rose-400 text-[10px]">✕</span>}</button>
+                    <button key={asset.id} onClick={() => { setActiveOverlay(activeOverlay === asset.id ? null : asset.id); setOverlayZoom(1); setIsAssetMenuOpen(false); }} className={`text-left px-3 py-2.5 rounded-lg font-bold text-xs transition-all flex items-center gap-2.5 ${activeOverlay === asset.id ? 'bg-slate-900 text-white shadow-inner' : 'hover:bg-slate-50 text-slate-700'}`}><span className="text-sm shrink-0">{getAssetIcon(asset.type)}</span><span className="truncate leading-none pt-0.5">{asset.title}</span>{activeOverlay === asset.id && <span className="ml-auto text-rose-400 text-[10px]">✕</span>}</button>
                   ))}
                 </div>
               )}

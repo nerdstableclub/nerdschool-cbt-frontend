@@ -143,7 +143,67 @@ const PyqInteractiveBlock = ({ questionTarget }) => {
 };
 
 // ==========================================
-// 3. MASTER STUDENT DASHBOARD
+// 🔥 3. NEW CUSTOM MCQ INTERACTIVE BLOCK
+// ==========================================
+const CustomMcqBlock = ({ mcqPayload }) => {
+  const [selectedOpt, setSelectedOpt] = useState(null);
+  const [showExplanation, setShowExplanation] = useState(false);
+
+  let mcqData = {};
+  try {
+    mcqData = JSON.parse(mcqPayload || '{}');
+  } catch (e) {
+    return <div className="p-10 text-center text-sm font-mono text-slate-500">Failed to load MCQ data.</div>;
+  }
+
+  const options = ['A', 'B', 'C', 'D'];
+  const correctAns = mcqData.correct;
+
+  const handleSelect = (opt) => {
+    if (selectedOpt !== null) return;
+    setSelectedOpt(opt);
+    setShowExplanation(true);
+  };
+
+  return (
+    <div className="flex flex-col w-full max-w-3xl mx-auto text-left">
+      <div className="flex justify-between items-start mb-4 border-b border-slate-800 pb-3">
+        <span className="text-xs font-black tracking-widest uppercase bg-amber-900/30 text-amber-400 px-3 py-1 rounded border border-amber-500/20 shadow-sm">CONCEPT CHECK</span>
+        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-3 py-1 bg-slate-900 rounded">CUSTOM MCQ</span>
+      </div>
+      <p className="text-slate-200 text-lg md:text-xl font-medium leading-relaxed mb-6 whitespace-pre-wrap">{mcqData.question}</p>
+      
+      <div className="space-y-3 mb-6">
+        {options.map((opt) => {
+          if (!mcqData[`opt${opt}`]) return null;
+          let btnStyle = "bg-slate-900 border-slate-700 text-slate-300 hover:border-amber-500/50 hover:bg-slate-800";
+          if (selectedOpt !== null) {
+            if (opt === correctAns) btnStyle = "bg-emerald-900/20 border-emerald-500/50 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.1)]"; 
+            else if (opt === selectedOpt) btnStyle = "bg-rose-900/20 border-rose-500/50 text-rose-300"; 
+            else btnStyle = "bg-slate-900/50 border-slate-800 text-slate-600 opacity-50"; 
+          }
+          return (
+            <button key={opt} onClick={() => handleSelect(opt)} disabled={selectedOpt !== null} className={`w-full text-left px-5 py-4 rounded-xl border text-sm md:text-base font-medium transition-all ${btnStyle} flex gap-4 items-center`}>
+              <span className="font-black opacity-40 shrink-0 text-lg">({opt})</span><span>{mcqData[`opt${opt}`]}</span>
+            </button>
+          );
+        })}
+      </div>
+      {showExplanation && mcqData.explanation && (
+        <div className="p-5 bg-gradient-to-br from-indigo-900/20 to-blue-900/10 border border-indigo-500/30 rounded-xl animate-fade-in shadow-inner">
+          <span className="text-xs font-black text-indigo-400 uppercase tracking-widest flex items-center gap-2 mb-2">
+            <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-pulse"></span> Teacher's Note
+          </span>
+          <p className="text-sm md:text-base text-slate-300 leading-relaxed">{mcqData.explanation}</p>
+        </div>
+      )}
+    </div>
+  );
+};
+
+
+// ==========================================
+// 4. MASTER STUDENT DASHBOARD
 // ==========================================
 export default function StudentDashboard({ user, onBack }) {
   const [lessonData, setLessonData] = useState([]);
@@ -217,8 +277,8 @@ export default function StudentDashboard({ user, onBack }) {
   const masterVideoId = getYoutubeId(currentStep.master_video);
   const masterVideoTimestamp = currentStep.video_timestamp || '0';
 
-  // Split assets based on how they should be displayed
-  const interactiveMedia = currentAssets.filter(a => ['youtube', 'question', 'image', 'svg'].includes(a.type));
+  // 🔥 UPGRADED: Added 'custom_mcq' to interactive media filter
+  const interactiveMedia = currentAssets.filter(a => ['youtube', 'question', 'custom_mcq', 'image', 'svg'].includes(a.type));
   const mnemonics = currentAssets.filter(a => a.type === 'mnemonic');
   const codes = currentAssets.filter(a => a.type === 'code');
   
@@ -277,7 +337,7 @@ export default function StudentDashboard({ user, onBack }) {
             <div className="flex justify-between items-center px-6 py-4 border-b border-slate-800 bg-slate-950/50 shrink-0">
               <div className="flex items-center gap-3">
                 <span className="text-indigo-400 font-black uppercase tracking-widest text-[10px] bg-indigo-500/10 border border-indigo-500/30 px-2.5 py-1 rounded shadow-inner">
-                  {activeResource.type}
+                  {activeResource.type.replace('_', ' ')}
                 </span>
                 <h3 className="text-sm font-bold text-slate-200 truncate pr-4">{activeResource.title || 'Resource Viewing'}</h3>
               </div>
@@ -293,6 +353,12 @@ export default function StudentDashboard({ user, onBack }) {
               {activeResource.type === 'question' && (
                  <div className="w-full h-full flex items-center justify-center py-4">
                    <PyqInteractiveBlock questionTarget={activeResource.payload} />
+                 </div>
+              )}
+              {/* 🔥 NEW: Render Custom MCQ Block */}
+              {activeResource.type === 'custom_mcq' && (
+                 <div className="w-full h-full flex items-center justify-center py-4">
+                   <CustomMcqBlock mcqPayload={activeResource.payload} />
                  </div>
               )}
               {activeResource.type === 'image' && (
@@ -486,6 +552,7 @@ export default function StudentDashboard({ user, onBack }) {
                     let icon = '🖼️';
                     if (asset.type === 'youtube') icon = '▶️';
                     if (asset.type === 'question') icon = '🎯';
+                    if (asset.type === 'custom_mcq') icon = '📝'; // 🔥 NEW ICON
                     if (asset.type === 'svg') icon = '🧬';
 
                     return (
@@ -493,7 +560,7 @@ export default function StudentDashboard({ user, onBack }) {
                         <div className="text-xl shrink-0 group-hover:scale-110 transition-transform">{icon}</div>
                         <div className="flex flex-col overflow-hidden w-full">
                           <span className="text-xs font-bold text-slate-200 truncate pr-2 group-hover:text-indigo-300 transition-colors">{asset.title || 'Attached Media'}</span>
-                          <span className="text-[9px] font-mono text-slate-500 uppercase tracking-widest mt-0.5">Open {asset.type}</span>
+                          <span className="text-[9px] font-mono text-slate-500 uppercase tracking-widest mt-0.5">Open {asset.type.replace('_', ' ')}</span>
                         </div>
                       </button>
                     );
