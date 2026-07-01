@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-
+import SmartEnginePanel from './SmartEnginePanel';
+import TeachingDashboard from './TeachingDashboard';
 // 🔥 NEW: Dynamic API URL injected safely
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -299,6 +300,20 @@ export default function AdminPanel({ onStartExam }) {
               className={`px-4 py-2 rounded font-bold text-sm transition-all ${activeTab === 'editor' ? 'bg-white text-blue-900 shadow' : 'text-blue-200 hover:text-white'}`}
             >
               ✏️ Database Editor
+            </button>
+
+            {/* 👇 DROP OUR 4TH ISOLATED TAB BUTTON HERE */}
+            <button 
+              onClick={() => setActiveTab('smart-engine')}
+              className={`px-4 py-2 rounded font-bold text-sm transition-all ${activeTab === 'smart-engine' ? 'bg-white text-purple-900 shadow font-black' : 'text-purple-200 hover:text-white'}`}
+            >
+              🧠 Smart Prediction Bank
+            </button>
+            <button 
+             onClick={() => setActiveTab('teaching-studio')}
+             className={`px-4 py-2 rounded font-bold text-sm transition-all ${activeTab === 'teaching-studio' ? 'bg-white text-emerald-900 shadow font-black' : 'text-emerald-200 hover:text-white'}`}
+            >
+            🎙️ Live Teaching Studio
             </button>
           </div>
         </div>
@@ -712,8 +727,18 @@ export default function AdminPanel({ onStartExam }) {
             </div>
           </div>
         )}
-
+           {activeTab === 'smart-engine' && (
+           <SmartEnginePanel API_URL={API_URL} />
+        )} 
       </div>
+      {/* ========================================================= */}
+{/* TAB 5: LIVE TEACHING COCKPIT (OBS STREAMER MODE)          */}
+{/* ========================================================= */}
+{activeTab === 'teaching-studio' && (
+  <div className="fixed inset-0 z-[100] bg-slate-950 overflow-hidden">
+    <TeachingDashboard />
+  </div>
+)}
     </div>
   );
 }

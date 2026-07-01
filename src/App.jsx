@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import AdminPanel from './AdminPanel'; 
 import Auth from './Auth'; 
 import ExamInstructions from './ExamInstructions';
+import StudentHub from './StudentHub'; 
+import StudentDashboard from './StudentDashboard';
 
-// 🔥 NEW: Dynamic Backend URL
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 const ExamTimer = ({ initialMinutes = 180, onTimeUp }) => {
@@ -29,54 +30,54 @@ const ExamTimer = ({ initialMinutes = 180, onTimeUp }) => {
 };
 
 function App() {
-  // MASTER STATE: Starting the app on the 'auth' screen
   const [appMode, setAppMode] = useState('auth'); 
   const [currentUser, setCurrentUser] = useState(null); 
   const [isExamPreview, setIsExamPreview] = useState(false); 
-  const [currentTestId, setCurrentTestId] = useState(null); // Remembers which test they are taking
-  const [isSavingScore, setIsSavingScore] = useState(false); // Loading state for saving 
+  const [currentTestId, setCurrentTestId] = useState(null); 
+  const [isSavingScore, setIsSavingScore] = useState(false); 
   
   // DASHBOARD STATE
   const [publishedTests, setPublishedTests] = useState([]);
   const [myScores, setMyScores] = useState([]); 
   const [loadingTests, setLoadingTests] = useState(false);
   
-  // --- NEW: PRACTICE ENGINE STATE ---
+  // PRACTICE ENGINE STATE
   const [blueprintMeta, setBlueprintMeta] = useState(null);
   const [isPracticeMode, setIsPracticeMode] = useState(false); 
-  const [practiceScores, setPracticeScores] = useState([]); // For local memory
-  const [showPremiumModal, setShowPremiumModal] = useState(false); // 🔥 NEW: Paywall Modal State
+  const [practiceScores, setPracticeScores] = useState([]); 
+  const [showPremiumModal, setShowPremiumModal] = useState(false); 
 
-  // FETCH TESTS & SCORES WHEN DASHBOARD OPENS
+  // 🔥 THE NEW BOUNCER LOGIC
+  // Checks if the user has a specific plan in their ActivePlans array.
+  const hasPlan = (planName) => {
+    if (!currentUser || !currentUser.plans) return false;
+    return currentUser.plans.some(p => p.toLowerCase() === planName.toLowerCase() || p.toLowerCase() === 'premium'); 
+    // Note: If they have 'Premium', we assume they get access to everything. You can adjust this if 'Premium' doesn't include 'Mocktest'.
+  };
+
   useEffect(() => {
     if (appMode === 'dashboard' && currentUser) {
       setLoadingTests(true);
 
-      // 1. Fetch available mock tests
       fetch(`${API_URL}/api/published-tests`)
         .then(res => res.json())
         .then(data => setPublishedTests(data))
         .catch(err => console.error(err));
 
-      // 2. Fetch the student's past scores
       fetch(`${API_URL}/api/my-scores?rollNumber=${currentUser.rollNumber}`)
         .then(res => res.json())
         .then(data => setMyScores(data))
         .catch(err => console.error(err));
 
-      // 3. 🔥 Fetch the Library for the Freemium Grid!
       fetch(`${API_URL}/api/blueprint-meta`)
         .then(res => res.json())
         .then(data => setBlueprintMeta(data))
         .catch(err => console.error(err))
         .finally(() => setLoadingTests(false));
 
-      // 4. 🔥 Load temporary practice scores from Local Browser Memory
       setPracticeScores(JSON.parse(localStorage.getItem('ns_practice_scores') || '[]'));
     }
   }, [appMode, currentUser]);
-  
-  // EXAM STATE
   
   // EXAM STATE
   const [questions, setQuestions] = useState([]);
@@ -86,7 +87,7 @@ function App() {
   const [showResult, setShowResult] = useState(false);
   const [isReviewMode, setIsReviewMode] = useState(false);
 
-  // --- ANTI-CHEATING SYSTEM ---
+  // ANTI-CHEATING SYSTEM
   const [cheatAlert, setCheatAlert] = useState('');
   const cheatJokes = [
     "Nice try! But copying is a tragedy Shakespeare wouldn't even write.",
@@ -112,31 +113,31 @@ function App() {
   ];
 
   useEffect(() => {
-    if (appMode !== 'exam') return; // Only block things during the actual exam!
+    if (appMode !== 'exam') return;
 
     const triggerJoke = (e) => {
       if (e) e.preventDefault();
       const randomJoke = cheatJokes[Math.floor(Math.random() * cheatJokes.length)];
       setCheatAlert(randomJoke);
-      setTimeout(() => setCheatAlert(''), 4000); // Hide after 4 seconds
+      setTimeout(() => setCheatAlert(''), 4000); 
     };
 
     const handleKeyDown = (e) => {
       if (
         e.key === 'F12' || 
-        (e.ctrlKey && e.shiftKey && e.key === 'I') || // DevTools
-        (e.ctrlKey && e.key === 'p') || // Print
-        (e.ctrlKey && e.key === 's') || // Save
-        (e.ctrlKey && e.key === 'c') || // Copy
-        e.key === 'PrintScreen' // Screenshot key
+        (e.ctrlKey && e.shiftKey && e.key === 'I') || 
+        (e.ctrlKey && e.key === 'p') || 
+        (e.ctrlKey && e.key === 's') || 
+        (e.ctrlKey && e.key === 'c') || 
+        e.key === 'PrintScreen' 
       ) {
         triggerJoke(e);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('contextmenu', triggerJoke); // Blocks right-click
-    window.addEventListener('copy', triggerJoke); // Blocks copying
+    window.addEventListener('contextmenu', triggerJoke); 
+    window.addEventListener('copy', triggerJoke); 
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
@@ -145,13 +146,13 @@ function App() {
     };
   }, [appMode]);
 
-  // --- NEW: FETCH AND START PRACTICE TEST ---
   const handleStartPractice = async (paperType, subject, chapter) => {
     try {
       const res = await fetch(`${API_URL}/api/quick-practice`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ paperType, subject, chapter, isPremium: currentUser.isPremium })
+        // We pass hasPlan('Premium') so the backend knows if it should serve premium questions
+        body: JSON.stringify({ paperType, subject, chapter, isPremium: hasPlan('Mocktest') || hasPlan('Premium') })
       });
       const data = await res.json();
       
@@ -160,7 +161,6 @@ function App() {
           paper1Questions: paperType === 'Paper I' ? data.questions : [],
           paper2Questions: paperType !== 'Paper I' ? data.questions : []
         };
-        // Pass "true" at the end to turn on Practice Mode!
         handleStartExam(dummyTest, `Practice: ${chapter}`, false, null, true); 
       } else {
         alert("No questions found for this chapter!");
@@ -170,15 +170,13 @@ function App() {
     }
   };
 
-  // --- CONNECTING ADMIN TO EXAM ---
   const handleStartExam = (generatedTest, testId = null, isPreview = false, pastResponses = null, isPractice = false) => {
     setCurrentTestId(testId);
     setIsExamPreview(isPreview);
-    setIsPracticeMode(isPractice); // <--- Store the flag in state
+    setIsPracticeMode(isPractice); 
     setCurrentTestId(testId);
     setIsExamPreview(isPreview);
     
-    // If pastResponses exist, we turn on Review Mode immediately!
     if (pastResponses) {
       setIsReviewMode(true);
       setShowResult(false);
@@ -216,7 +214,6 @@ function App() {
 
     let combined = [...p1Formatted, ...p2Formatted];
     
-    // Inject their saved answers if they are reviewing!
     if (pastResponses) {
       combined = combined.map(q => {
         const saved = pastResponses.find(r => r.id === q.id);
@@ -225,11 +222,9 @@ function App() {
     }
 
     setQuestions(combined);
-    // Skip instructions if reviewing past answers. Otherwise, show instructions!
     setAppMode(pastResponses ? 'exam' : 'instructions');
   };
 
-  // --- EXAM ENGINE LOGIC ---
   const handleOptionSelect = (optionIndex) => {
     if (isReviewMode) return;
     const updatedQuestions = [...questions];
@@ -321,7 +316,6 @@ function App() {
     return { correct, incorrect, score, p1Score, p1Total, p2Score, p2Total };
   };
 
-  // --- NEW: 3-ZONE DIAGNOSTIC LOGIC ---
   const getZoneDetails = (score, total) => {
     if (total === 0) return null;
     const percentage = (score / total) * 100;
@@ -338,10 +332,8 @@ function App() {
     setIsSavingScore(true);
     const result = calculateResult();
 
-    // Only save if it's a real student taking a published test (Not Admin Preview!)
     if (!isExamPreview && currentUser && currentTestId) {
       if (isPracticeMode) {
-        // 🔥 WALLED GARDEN: Save to Local Storage, NOT Google Sheets!
         const newScore = {
           date: new Date().toLocaleDateString('en-IN'),
           testId: currentTestId,
@@ -349,11 +341,10 @@ function App() {
           correct: result.correct,
           incorrect: result.incorrect
         };
-        const updatedScores = [newScore, ...practiceScores].slice(0, 10); // Keep last 10
+        const updatedScores = [newScore, ...practiceScores].slice(0, 10); 
         setPracticeScores(updatedScores);
         localStorage.setItem('ns_practice_scores', JSON.stringify(updatedScores));
       } else {
-        // 💾 FULL EXAM: Save to Google Sheets Database!
         try {
           await fetch(`${API_URL}/api/save-score`, {
             method: 'POST',
@@ -380,7 +371,7 @@ function App() {
   };
 
   // ==========================================
-  // RENDER ROUTING (Controls what screen you see)
+  // RENDER ROUTING
   // ==========================================
   
   if (appMode === 'auth') {
@@ -388,11 +379,28 @@ function App() {
       <Auth 
         onLogin={(user) => { 
           setCurrentUser(user); 
-          setAppMode('dashboard'); 
+          setAppMode('hub'); 
         }} 
         onGoToAdmin={() => setAppMode('admin')} 
       />
     );
+  }
+
+  if (appMode === 'hub') {
+    return (
+      <StudentHub 
+        user={currentUser} 
+        onSelectPath={(path) => {
+          if (path === 'cbt') setAppMode('dashboard');
+          if (path === 'lms') setAppMode('lms');
+        }} 
+        onLogout={() => { setCurrentUser(null); setAppMode('auth'); }} 
+      />
+    );
+  }
+
+  if (appMode === 'lms') {
+    return <StudentDashboard user={currentUser} onBack={() => setAppMode('hub')} />;
   }
 
   if (appMode === 'admin') {
@@ -403,28 +411,20 @@ function App() {
     return <ExamInstructions onProceed={() => setAppMode('exam')} />;
   }
 
-  // ==========================================
-  // PROFILE & SETTINGS UI 
-  // ==========================================
   if (appMode === 'profile') {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 font-sans">
         <div className="bg-white p-8 rounded-2xl shadow-xl border border-gray-200 max-w-md w-full relative overflow-hidden">
-          {/* Decorative Header Background */}
           <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-r from-blue-900 to-purple-900"></div>
           
-          {/* Back Button */}
           <button 
-            onClick={() => setAppMode('dashboard')}
+            onClick={() => setAppMode('hub')} 
             className="absolute top-4 left-4 text-white hover:bg-white/20 p-2 rounded-full transition-colors z-10"
           >
-            ← Back
+            ← Hub
           </button>
 
-          {/* Profile Content */}
           <div className="relative z-10 flex flex-col items-center mt-12">
-            
-            {/* Dynamic Avatar */}
             <div className="w-28 h-28 bg-white rounded-full p-1.5 shadow-lg mb-4">
               <div className="w-full h-full bg-gradient-to-br from-blue-700 to-purple-700 rounded-full flex items-center justify-center text-white text-5xl font-black">
                 {currentUser.name.charAt(0).toUpperCase()}
@@ -434,15 +434,14 @@ function App() {
             <h2 className="text-3xl font-black text-gray-900">{currentUser.name}</h2>
             <p className="text-gray-500 font-mono font-medium mt-1 mb-3">Roll No: {currentUser.rollNumber}</p>
             
-            {currentUser.isPremium ? (
-              <span className="bg-purple-100 text-purple-800 border border-purple-200 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest shadow-sm">
-                🌟 Premium Member
-              </span>
-            ) : (
-              <span className="bg-gray-100 text-gray-600 border border-gray-200 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest">
-                Free Tier
-              </span>
-            )}
+            {/* 🔥 NEW UI BADGES FOR PROFILE */}
+            <div className="flex flex-wrap justify-center gap-2 mb-2">
+              {currentUser.plans && currentUser.plans.map((plan, idx) => (
+                <span key={idx} className="bg-purple-100 text-purple-800 border border-purple-200 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm">
+                  {plan}
+                </span>
+              ))}
+            </div>
 
             <div className="w-full mt-10 space-y-3">
               <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-2 px-2">Account Management</h3>
@@ -480,8 +479,8 @@ function App() {
     );
   }
 
+  // THE EXISTING CBT DASHBOARD
   if (appMode === 'dashboard') {
-    // 🔥 Calculate the massive size of your database for the animated badge!
     let totalQuestions = 0;
     if (blueprintMeta) {
       blueprintMeta.paper1.forEach(sub => sub.chapters.forEach(ch => totalQuestions += ch.total));
@@ -492,34 +491,42 @@ function App() {
       <div className="min-h-screen bg-gray-50 p-4 sm:p-10 font-sans relative">
         <div className="max-w-6xl mx-auto">
           
-          {/* DASHBOARD HEADER */}
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <button 
               onClick={() => setAppMode('profile')}
               className="flex items-center gap-4 text-left group transition-transform hover:scale-[1.02]"
             >
-              {/* 🔥 THE DYNAMIC AVATAR 🔥 */}
               <div className="w-16 h-16 bg-gradient-to-br from-blue-700 to-purple-700 rounded-full flex items-center justify-center text-white text-2xl font-black shadow-md border-2 border-white group-hover:shadow-lg transition-all">
                 {currentUser.name.charAt(0).toUpperCase()}
               </div>
               <div>
                 <h1 className="text-2xl font-black text-blue-900 mb-1 group-hover:text-purple-700 transition-colors">Welcome, {currentUser.name}!</h1>
-                <p className="text-gray-500 font-medium text-sm">Roll No: <span className="font-bold text-gray-800">{currentUser.rollNumber}</span> • {currentUser.isPremium ? '🌟 Premium' : 'Free Tier'}</p>
+                <p className="text-gray-500 font-medium text-sm flex gap-2 items-center">
+                  Roll No: <span className="font-bold text-gray-800">{currentUser.rollNumber}</span> 
+                  • <span className="text-[10px] bg-green-100 text-green-800 px-2 py-0.5 rounded font-black uppercase tracking-wider">{hasPlan('Mocktest') || hasPlan('Premium') ? 'Unlocked' : 'Free Tier'}</span>
+                </p>
                 <p className="text-[10px] font-bold text-blue-600 mt-1 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">Manage Profile ⚙️</p>
               </div>
             </button>
 
-            <button 
-              onClick={() => { setCurrentUser(null); setAppMode('auth'); }}
-              className="px-6 py-2 bg-red-50 text-red-600 font-bold rounded-lg border border-red-200 hover:bg-red-100 transition-colors shadow-sm"
-            >
-              Logout
-            </button>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => setAppMode('hub')}
+                className="px-6 py-2 bg-slate-100 text-slate-700 font-bold rounded-lg border border-slate-300 hover:bg-slate-200 transition-colors shadow-sm"
+              >
+                ← Back to Hub
+              </button>
+              <button 
+                onClick={() => { setCurrentUser(null); setAppMode('auth'); }}
+                className="px-6 py-2 bg-red-50 text-red-600 font-bold rounded-lg border border-red-200 hover:bg-red-100 transition-colors shadow-sm"
+              >
+                Logout
+              </button>
+            </div>
           </div>
           
           <h2 className="text-2xl font-bold text-gray-800 mb-6 border-b pb-2">Available Mock Tests</h2>
           
-          {/* THE TEST GRID */}
           {loadingTests ? (
              <div className="text-center p-10 font-bold text-xl text-blue-600 animate-pulse">Loading your tests...</div>
           ) : publishedTests.length === 0 ? (
@@ -529,49 +536,50 @@ function App() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {publishedTests.map(test => (
-                <div key={test.testId} className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-lg transition-all overflow-hidden flex flex-col transform hover:-translate-y-1">
-                  
-                  {/* CARD HEADER (Green for Free, Purple for Premium) */}
-                  <div className={`p-4 text-white font-black tracking-widest uppercase text-xs ${test.isPremium ? 'bg-purple-800' : 'bg-green-600'}`}>
-                    {test.isPremium ? '🌟 Premium Mock' : '🎁 Free Mock'}
-                  </div>
-                  
-                  {/* CARD BODY */}
-                  <div className="p-6 flex-1 flex flex-col justify-between">
-                    <div className="mb-6">
-                      <h3 className="text-xl font-bold text-gray-800 mb-2 leading-tight">{test.title}</h3>
-                      <p className="text-xs text-gray-400 font-mono">ID: {test.testId}</p>
+              {publishedTests.map(test => {
+                // 🔥 NEW BOUNCER FOR PUBLISHED TESTS
+                const isLocked = test.isPremium && !hasPlan('Mocktest') && !hasPlan('Premium');
+
+                return (
+                  <div key={test.testId} className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-lg transition-all overflow-hidden flex flex-col transform hover:-translate-y-1">
+                    
+                    <div className={`p-4 text-white font-black tracking-widest uppercase text-xs ${test.isPremium ? 'bg-purple-800' : 'bg-green-600'}`}>
+                      {test.isPremium ? '🌟 Premium Mock' : '🎁 Free Mock'}
                     </div>
                     
-                    {/* ACTION BUTTON LOGIC */}
-                    {test.isPremium && !currentUser.isPremium ? (
-                      <button 
-                        onClick={() => {
-                          const message = `Hi NerdSchool! I want to upgrade to Premium CBT for Rs 999/-.\n\nMy Roll Number is: ${currentUser.rollNumber}`;
-                          const waLink = `https://wa.me/919645160045?text=${encodeURIComponent(message)}`;
-                          window.open(waLink, '_blank');
-                        }}
-                        className="w-full py-4 bg-purple-50 text-purple-800 font-black rounded-lg border-2 border-purple-200 hover:bg-purple-100 transition-colors shadow-sm flex flex-col items-center justify-center gap-1"
-                      >
-                        <span className="text-sm">🔒 Unlock for Rs 999/-</span>
-                        <span className="text-[10px] text-purple-600 uppercase tracking-widest">Via WhatsApp</span>
-                      </button>
-                    ) : (
-                      <button 
-                        onClick={() => handleStartExam(test.testData, test.testId, false)}
-                        className="w-full py-4 bg-blue-800 text-white font-black rounded-lg hover:bg-blue-900 shadow-md transition-colors"
-                      >
-                        Start Exam Now 🚀
-                      </button>
-                    )}
+                    <div className="p-6 flex-1 flex flex-col justify-between">
+                      <div className="mb-6">
+                        <h3 className="text-xl font-bold text-gray-800 mb-2 leading-tight">{test.title}</h3>
+                        <p className="text-xs text-gray-400 font-mono">ID: {test.testId}</p>
+                      </div>
+                      
+                      {isLocked ? (
+                        <button 
+                          onClick={() => {
+                            const message = `Hi NerdSchool! I want to upgrade to Premium CBT for Rs 999/-.\n\nMy Roll Number is: ${currentUser.rollNumber}`;
+                            const waLink = `https://wa.me/919645160045?text=${encodeURIComponent(message)}`;
+                            window.open(waLink, '_blank');
+                          }}
+                          className="w-full py-4 bg-purple-50 text-purple-800 font-black rounded-lg border-2 border-purple-200 hover:bg-purple-100 transition-colors shadow-sm flex flex-col items-center justify-center gap-1"
+                        >
+                          <span className="text-sm">🔒 Unlock for Rs 999/-</span>
+                          <span className="text-[10px] text-purple-600 uppercase tracking-widest">Via WhatsApp</span>
+                        </button>
+                      ) : (
+                        <button 
+                          onClick={() => handleStartExam(test.testData, test.testId, false)}
+                          className="w-full py-4 bg-blue-800 text-white font-black rounded-lg hover:bg-blue-900 shadow-md transition-colors"
+                        >
+                          Start Exam Now 🚀
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
-          {/* --- NEW SECTION: CHAPTER-WISE PRACTICE (FREEMIUM GRID) --- */}
           <div className="mt-16">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-6 border-b pb-4 gap-4">
               <div>
@@ -579,7 +587,6 @@ function App() {
                 <p className="text-gray-500 font-medium mt-1">30-Question Rapid Fire • Active Recall Methodology</p>
               </div>
               
-              {/* 🔥 THE ANIMATED TOTAL QUESTIONS BADGE 🔥 */}
               {totalQuestions > 0 && (
                 <div className="inline-flex items-center gap-3 bg-gradient-to-r from-purple-800 to-blue-700 text-white px-5 py-2.5 rounded-full shadow-[0_0_20px_rgba(126,34,206,0.4)] animate-pulse border border-purple-400">
                   <span className="relative flex h-3 w-3">
@@ -593,7 +600,6 @@ function App() {
               )}
             </div>
 
-            {/* LOCAL PRACTICE SCORES (Visible only if they have practiced) */}
             {practiceScores.length > 0 && (
               <div className="mb-8 flex gap-3 overflow-x-auto pb-4 scrollbar-hide">
                 {practiceScores.map((ps, idx) => (
@@ -609,7 +615,6 @@ function App() {
               </div>
             )}
 
-            {/* --- PAPER 1: CHAPTER GRID (GREEN THEME) --- */}
             {blueprintMeta && blueprintMeta.paper1.map((subjectGroup, sIdx) => (
               <div key={`p1-${sIdx}`} className="mb-10">
                 <h3 className="text-lg font-black text-green-900 mb-4 uppercase tracking-widest bg-green-50 p-3 rounded-lg border border-green-100 shadow-sm flex justify-between items-center">
@@ -618,15 +623,16 @@ function App() {
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {subjectGroup.chapters.map((ch, cIdx) => {
-                    const isFree = cIdx === 0;
-                    const isLocked = !isFree && !currentUser.isPremium;
+                    const isFree = cIdx === 0; // Chapter 1 is always free
+                    // 🔥 NEW BOUNCER LOGIC
+                    const isLocked = !isFree && !hasPlan('Mocktest') && !hasPlan('Premium');
 
                     return (
                       <button
                         key={`p1-ch-${cIdx}`}
                         onClick={() => {
                           if (isLocked) {
-                            setShowPremiumModal(true); // 🔥 Pops open the breathtaking modal!
+                            setShowPremiumModal(true); 
                           } else {
                             handleStartPractice('Paper I', subjectGroup.subject, ch.name);
                           }
@@ -661,7 +667,6 @@ function App() {
               </div>
             ))}
 
-            {/* --- PAPER 2: CHAPTER GRID (BLUE THEME) --- */}
             {blueprintMeta && blueprintMeta.paper2.map((subjectGroup, sIdx) => (
               <div key={`p2-${sIdx}`} className="mb-10">
                 <h3 className="text-lg font-black text-blue-900 mb-4 uppercase tracking-widest bg-blue-50 p-3 rounded-lg border border-blue-100 shadow-sm flex justify-between items-center">
@@ -671,7 +676,8 @@ function App() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {subjectGroup.chapters.map((ch, cIdx) => {
                     const isFree = cIdx === 0;
-                    const isLocked = !isFree && !currentUser.isPremium;
+                    // 🔥 NEW BOUNCER LOGIC
+                    const isLocked = !isFree && !hasPlan('Mocktest') && !hasPlan('Premium');
 
                     return (
                       <button
@@ -716,7 +722,6 @@ function App() {
             ))}
           </div>
 
-          {/* --- NOW STARTS: MY PERFORMANCE HISTORY --- */}
           <div className="mt-16">
             <h2 className="text-2xl font-bold text-gray-800 mb-6 border-b pb-2">My Performance History</h2>
             
@@ -768,12 +773,10 @@ function App() {
             )}
           </div>
 
-          {/* 🔥 THE BREATHTAKING PREMIUM MODAL 🔥 */}
           {showPremiumModal && (
             <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-[100] p-4 animate-in fade-in duration-300">
               <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-gray-200 relative transform transition-all scale-100 animate-in zoom-in-95">
                 
-                {/* Close Button */}
                 <button 
                   onClick={() => setShowPremiumModal(false)}
                   className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-full w-8 h-8 flex items-center justify-center transition-colors z-10"
@@ -781,7 +784,6 @@ function App() {
                   ✕
                 </button>
 
-                {/* Top Graphic Area */}
                 <div className="bg-gradient-to-br from-purple-900 to-blue-900 p-8 text-center relative overflow-hidden">
                   <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-20"></div>
                   <div className="w-20 h-20 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm border border-white/20 shadow-lg">
@@ -791,7 +793,6 @@ function App() {
                   <p className="text-purple-200 font-medium relative z-10">You've hit a paywall! Upgrade to access the complete library.</p>
                 </div>
 
-                {/* Features List */}
                 <div className="p-8 bg-white">
                   <div className="space-y-4 mb-8">
                     <div className="flex items-start gap-4">
@@ -817,7 +818,6 @@ function App() {
                     </div>
                   </div>
 
-                  {/* Pricing & CTA */}
                   <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 mb-6 text-center">
                     <span className="text-gray-400 font-bold line-through text-sm mr-2">₹4,999</span>
                     <span className="text-3xl font-black text-gray-900">₹999</span>
@@ -846,9 +846,7 @@ function App() {
     );
   }
 
-  // ==========================================
   // EXAM UI 
-  // ==========================================
   const activeQuestions = questions.filter(q => q.section === activeSection);
   const currentQ = questions[currentIndex];
 
@@ -889,13 +887,11 @@ function App() {
                     <p className="text-5xl font-black text-blue-900">{res.score}</p>
                   </div>
 
-                  {/* 🔥 3-ZONE DIAGNOSTIC DASHBOARD 🔥 */}
                   {(p1Zone || p2Zone) && (
                     <div className="mb-8 border-t-2 border-dashed border-gray-200 pt-6">
                       <h3 className="text-sm font-black text-gray-800 uppercase tracking-widest mb-4">3-Zone Diagnostic Analysis</h3>
                       <div className="flex flex-col gap-3">
                         
-                        {/* Paper 1 Card */}
                         {p1Zone && (
                           <div className={`p-4 rounded-xl border-2 text-left flex flex-col justify-between shadow-sm transition-all ${p1Zone.style}`}>
                             <div className="flex justify-between items-center mb-1">
@@ -907,7 +903,6 @@ function App() {
                           </div>
                         )}
 
-                        {/* Paper 2 Card */}
                         {p2Zone && (
                           <div className={`p-4 rounded-xl border-2 text-left flex flex-col justify-between shadow-sm transition-all ${p2Zone.style}`}>
                             <div className="flex justify-between items-center mb-1">
@@ -950,7 +945,6 @@ function App() {
         </div>
       ) : (
         <div className="flex flex-col h-screen bg-gray-50 font-sans select-none">
-          {/* CHEAT ALERT TOAST */}
           {cheatAlert && (
             <div className="fixed top-10 left-1/2 transform -translate-x-1/2 z-[9999] bg-red-600 text-white px-8 py-4 rounded-xl shadow-2xl font-black text-center max-w-lg border-4 border-red-900 animate-in slide-in-from-top-5">
               🚨 Anti-Cheat Activated 🚨
@@ -976,9 +970,7 @@ function App() {
           </header>
 
           <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
-            {/* 🔥 Added min-h-0 and overflow-hidden to fix the scrolling bug! */}
             <div className="flex flex-col flex-1 bg-white relative min-h-0 overflow-hidden">
-              {/* 🔥 Hide Paper Tabs during Chapter Practice Mode! 🔥 */}
               {!isPracticeMode && (
                 <div className="flex bg-[#eeeeee] border-b border-gray-300 px-1">
                   <button 
@@ -1019,7 +1011,6 @@ function App() {
                 </div>
               </div>
 
-              {/* 🔥 Increased pb-40 (padding-bottom) so the floating buttons never cover the text! */}
               <div className="flex-1 p-4 sm:p-6 overflow-y-auto pb-40 break-words">
                 <div className="mb-8 bg-white p-4 sm:p-6 rounded-xl border border-gray-200 shadow-sm relative overflow-hidden">
                   <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-blue-800"></div>
@@ -1185,10 +1176,8 @@ function App() {
               </div>
             </div>
 
-            {/* 🔥 Increased height slightly now that the giant photo is hidden! */}
             <div className="w-full lg:w-72 h-[35vh] lg:h-auto bg-blue-50 lg:border-l border-t lg:border-t-0 border-gray-300 flex flex-col z-0 shrink-0">
               
-              {/* 🔥 Hide huge profile block on mobile screens! */}
               <div className="hidden lg:flex p-4 bg-white border-b border-gray-300 items-center gap-3">
                 <div className="w-16 h-20 bg-gray-200 border border-gray-400 flex items-center justify-center text-[10px] text-gray-400">Photo</div>
                 <div className="flex flex-col">

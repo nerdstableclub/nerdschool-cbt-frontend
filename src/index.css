@@ -1,1 +1,10 @@
 @import "tailwindcss";
+
+/* LMS Sidebar Clean Scrollbar */
+.custom-scrollbar::-webkit-scrollbar { 
+  width: 4px; 
+}
+.custom-scrollbar::-webkit-scrollbar-thumb { 
+  background-color: #cbd5e1; 
+  border-radius: 4px; 
+}
