@@ -35,9 +35,8 @@ const SmartVideoPlayer = ({ videoId, timestampText }) => {
 
   useEffect(() => {
     if (videoId !== mountedVideoId) {
-      setMountedVideoId(videoId); // Hard reload if it's a completely different video
+      setMountedVideoId(videoId); 
     } else if (iframeRef.current) {
-      // THE MAGIC: If it's the same video, just send a stealth command to jump to the new timestamp!
       const seconds = parseTimestamp(timestampText);
       iframeRef.current.contentWindow.postMessage(JSON.stringify({
         event: 'command',
@@ -143,7 +142,7 @@ const PyqInteractiveBlock = ({ questionTarget }) => {
 };
 
 // ==========================================
-// 🔥 3. NEW CUSTOM MCQ INTERACTIVE BLOCK
+// 3. CUSTOM MCQ INTERACTIVE BLOCK
 // ==========================================
 const CustomMcqBlock = ({ mcqPayload }) => {
   const [selectedOpt, setSelectedOpt] = useState(null);
@@ -201,6 +200,31 @@ const CustomMcqBlock = ({ mcqPayload }) => {
   );
 };
 
+// ==========================================
+// 🔥 SANDBOXED WEBVIEW RENDERER HELPER
+// ==========================================
+const getIframeDoc = (payload) => {
+  if (!payload) return '';
+  const trimmed = payload.trim();
+  // If it's a raw SVG, wrap it safely in HTML so it scales beautifully
+  if (trimmed.toLowerCase().startsWith('<svg')) {
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <style>
+            body { margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #ffffff; }
+            svg { max-width: 100%; max-height: 100vh; height: auto; }
+          </style>
+        </head>
+        <body>${trimmed}</body>
+      </html>
+    `;
+  }
+  // Otherwise, it's custom HTML code! Render it natively.
+  return payload;
+};
+
 
 // ==========================================
 // 4. MASTER STUDENT DASHBOARD
@@ -249,12 +273,7 @@ export default function StudentDashboard({ user, onBack }) {
 
   const getYoutubeId = (url) => {
     if (!url) return null;
-    
-    // 🔥 NEW: If it's already a clean 11-character ID, just use it!
-    if (url.length === 11 && !url.includes('/') && !url.includes('?')) {
-      return url;
-    }
-
+    if (url.length === 11 && !url.includes('/') && !url.includes('?')) return url;
     const regExp = /^.*(youtu.be\/|live\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
     const match = url.match(regExp);
     return (match && match[2].length === 11) ? match[2] : null;
@@ -273,11 +292,9 @@ export default function StudentDashboard({ user, onBack }) {
   const currentAssets = parseJSON(currentStep.macro_trigger);
   const synapseNotes = parseJSON(currentStep.synapse_notes);
 
-  // Video Data
   const masterVideoId = getYoutubeId(currentStep.master_video);
   const masterVideoTimestamp = currentStep.video_timestamp || '0';
 
-  // 🔥 UPGRADED: Added 'custom_mcq' to interactive media filter
   const interactiveMedia = currentAssets.filter(a => ['youtube', 'question', 'custom_mcq', 'image', 'svg'].includes(a.type));
   const mnemonics = currentAssets.filter(a => a.type === 'mnemonic');
   const codes = currentAssets.filter(a => a.type === 'code');
@@ -333,7 +350,11 @@ export default function StudentDashboard({ user, onBack }) {
       {/* THEATER MODE OVERLAY POPUP */}
       {activeResource && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 md:p-10 bg-slate-950/90 backdrop-blur-md animate-fade-in">
-          <div className="bg-slate-900 border border-slate-700/80 rounded-2xl w-full max-w-5xl max-h-[90vh] flex flex-col shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden">
+          
+          {/* 🔥 CONDITIONAL SIZING: Webview gets max-w-7xl + fixed 90vh height, others get max-w-5xl */}
+          <div className={`bg-slate-900 border border-slate-700/80 rounded-2xl w-full flex flex-col shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden transition-all duration-300 ${
+            activeResource.type === 'svg' ? 'max-w-7xl h-[90vh]' : 'max-w-5xl max-h-[90vh]'
+          }`}>
             <div className="flex justify-between items-center px-6 py-4 border-b border-slate-800 bg-slate-950/50 shrink-0">
               <div className="flex items-center gap-3">
                 <span className="text-indigo-400 font-black uppercase tracking-widest text-[10px] bg-indigo-500/10 border border-indigo-500/30 px-2.5 py-1 rounded shadow-inner">
@@ -355,7 +376,6 @@ export default function StudentDashboard({ user, onBack }) {
                    <PyqInteractiveBlock questionTarget={activeResource.payload} />
                  </div>
               )}
-              {/* 🔥 NEW: Render Custom MCQ Block */}
               {activeResource.type === 'custom_mcq' && (
                  <div className="w-full h-full flex items-center justify-center py-4">
                    <CustomMcqBlock mcqPayload={activeResource.payload} />
@@ -364,8 +384,27 @@ export default function StudentDashboard({ user, onBack }) {
               {activeResource.type === 'image' && (
                  <img src={activeResource.payload} alt={activeResource.title} className="max-w-full max-h-full rounded-xl object-contain shadow-2xl border border-slate-800" />
               )}
+              
+              {/* 🔥 FIXED THEATER MODE WEBVIEW */}
               {activeResource.type === 'svg' && (
-                 <div className="w-full max-w-4xl bg-white/5 border border-slate-700/50 p-6 rounded-2xl shadow-xl flex justify-center items-center overflow-auto custom-scrollbar [&_svg]:max-w-full [&_svg]:h-auto" dangerouslySetInnerHTML={{ __html: activeResource.payload }} />
+                 <div className="w-full flex-1 h-full min-h-[75vh] flex flex-col">
+                   <div className="w-full h-full flex-1 flex flex-col bg-white rounded-xl shadow-2xl border border-slate-700 overflow-hidden">
+                     <div className="w-full h-8 bg-slate-200 border-b border-slate-300 flex items-center px-4 shrink-0">
+                       <div className="flex gap-1.5">
+                         <div className="w-2.5 h-2.5 rounded-full bg-rose-400"></div>
+                         <div className="w-2.5 h-2.5 rounded-full bg-amber-400"></div>
+                         <div className="w-2.5 h-2.5 rounded-full bg-emerald-400"></div>
+                       </div>
+                       <span className="ml-4 text-[10px] font-mono text-slate-500 font-bold uppercase tracking-widest">NerdSchool CodeWeb Visualizer</span>
+                     </div>
+                     <iframe 
+                       srcDoc={getIframeDoc(activeResource.payload)} 
+                       className="w-full h-full flex-1 bg-white" 
+                       frameBorder="0"
+                       sandbox="allow-scripts allow-same-origin"
+                     />
+                   </div>
+                 </div>
               )}
             </div>
           </div>
@@ -552,7 +591,7 @@ export default function StudentDashboard({ user, onBack }) {
                     let icon = '🖼️';
                     if (asset.type === 'youtube') icon = '▶️';
                     if (asset.type === 'question') icon = '🎯';
-                    if (asset.type === 'custom_mcq') icon = '📝'; // 🔥 NEW ICON
+                    if (asset.type === 'custom_mcq') icon = '📝';
                     if (asset.type === 'svg') icon = '🧬';
 
                     return (

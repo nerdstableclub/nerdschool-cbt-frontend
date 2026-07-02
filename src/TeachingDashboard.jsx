@@ -67,6 +67,155 @@ const PyqSearchEngine = ({ onSelect }) => {
   );
 };
 
+// ==========================================
+// 🔥 THE ELITE ACADEMIC WEBVIEW ENGINE
+// ==========================================
+const getIframeDoc = (payload) => {
+  if (!payload) return '';
+  const trimmed = payload.trim();
+  const isSvg = trimmed.toLowerCase().startsWith('<svg');
+
+  const premiumCSS = `
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&family=Merriweather:wght@400;700&family=Fira+Code:wght@500&display=swap');
+      
+      :root {
+        --bg-color: #f1f5f9;
+        --card-bg: #ffffff;
+        --text-main: #0f172a;
+        --text-muted: #64748b;
+        --accent: #4f46e5;
+        --border: #e2e8f0;
+      }
+      * { box-sizing: border-box; }
+      
+      /* ALIGN-ITEMS: FLEX-START ensures the top never gets cut off! */
+      body { 
+        margin: 0; padding: 2rem; min-height: 100vh; background: var(--bg-color);
+        display: flex; justify-content: center; align-items: flex-start;
+        font-family: 'Inter', system-ui, sans-serif; color: var(--text-main);
+        line-height: 1.7; -webkit-font-smoothing: antialiased;
+      }
+      
+      .nerdschool-canvas {
+        background: var(--card-bg); width: 100%; max-width: 1200px;
+        padding: 4rem 5rem; border-radius: 24px; margin-top: auto; margin-bottom: auto;
+        box-shadow: 0 20px 40px -15px rgba(0,0,0,0.05), 0 0 0 1px rgba(0,0,0,0.05);
+      }
+      
+      h1, h2, h3, h4 { font-family: 'Inter', sans-serif; font-weight: 900; letter-spacing: -0.025em; color: #0f172a; margin-top: 0; }
+      h1 { font-size: 2.5rem; border-bottom: 4px solid #e0e7ff; padding-bottom: 0.5rem; margin-bottom: 2rem; display: inline-block; }
+      h2 { font-size: 1.75rem; color: #1e293b; border-left: 4px solid var(--accent); padding-left: 1rem; margin-top: 2rem; margin-bottom: 1rem; }
+      p, ul, ol { font-size: 1.15rem; color: #334155; margin-bottom: 1.5rem; font-family: 'Merriweather', serif; }
+      ul, ol { padding-left: 1.5rem; }
+      li { margin-bottom: 0.75rem; padding-left: 0.5rem; }
+      li::marker { color: var(--accent); font-weight: bold; }
+      code { font-family: 'Fira Code', monospace; background: #f1f5f9; color: #db2777; padding: 0.2rem 0.4rem; border-radius: 6px; font-size: 0.9em; }
+      pre { background: #0f172a; color: #f8fafc; padding: 1.5rem; border-radius: 12px; overflow-x: auto; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5); margin-bottom: 2rem; }
+      pre code { background: transparent; color: inherit; padding: 0; }
+      table { width: 100%; border-collapse: collapse; margin-bottom: 2rem; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+      th, td { padding: 1rem 1.5rem; text-align: left; border-bottom: 1px solid var(--border); font-size: 1.05rem; }
+      th { background: #f8fafc; font-weight: 700; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.05em; color: var(--text-muted); }
+      tr:hover td { background: #f1f5f9; }
+      .svg-wrapper { display: flex; justify-content: center; align-items: flex-start; width: 100%; min-height: 100%; }
+      svg { max-width: 100%; height: auto !important; max-height: 85vh; filter: drop-shadow(0 15px 25px rgba(0,0,0,0.05)); }
+      @media (max-width: 768px) {
+        body { padding: 1rem; } .nerdschool-canvas { padding: 2rem; }
+        h1 { font-size: 2rem; } p, ul, ol { font-size: 1rem; }
+      }
+    </style>
+  `;
+
+  return `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        ${premiumCSS}
+      </head>
+      <body>
+        <div class="nerdschool-canvas">
+          ${isSvg ? `<div class="svg-wrapper">${trimmed}</div>` : trimmed}
+        </div>
+      </body>
+    </html>
+  `;
+};
+
+// ==========================================
+// 2. PYQ INTERACTIVE BLOCK
+// ==========================================
+const PyqInteractiveBlock = ({ questionTarget }) => {
+  const [qData, setQData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [selectedOpt, setSelectedOpt] = useState(null);
+  const [showExplanation, setShowExplanation] = useState(false);
+
+  useEffect(() => {
+    const fetchQ = async () => {
+      try {
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+        const res = await fetch(`${API_URL}/api/pyq/${encodeURIComponent(questionTarget)}`);
+        const result = await res.json();
+        if (result.success) setQData(result.data);
+      } catch (err) {
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchQ();
+  }, [questionTarget]);
+
+  if (loading) return <div className="p-10 text-center text-sm font-mono text-indigo-400 animate-pulse">Fetching Exam Intel from Cloud...</div>;
+  if (!qData) return <div className="p-10 text-center text-sm font-mono text-slate-500">Failed to load question data.</div>;
+
+  const options = [qData.Option_1, qData.Option_2, qData.Option_3, qData.Option_4].filter(Boolean);
+  const correctIdx = parseInt(qData.Correct_Answer) - 1;
+
+  const handleSelect = (idx) => {
+    if (selectedOpt !== null) return;
+    setSelectedOpt(idx);
+    setShowExplanation(true);
+  };
+
+  return (
+    <div className="flex flex-col w-full text-left">
+      <div className="flex justify-between items-start mb-6 border-b border-slate-200 pb-4">
+        <span className="text-xs font-black tracking-widest uppercase bg-indigo-50 text-indigo-600 px-3 py-1 rounded border border-indigo-200 shadow-sm">{qData.Exam_Session}</span>
+        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-3 py-1 bg-slate-100 rounded">{qData.Cognitive_Depth?.replace('_', ' ')}</span>
+      </div>
+      <p className="text-slate-800 text-xl md:text-2xl font-bold leading-relaxed mb-8">{qData.Question_Text}</p>
+      
+      <div className="space-y-4 mb-8">
+        {options.map((opt, i) => {
+          let btnStyle = "bg-slate-50 border-slate-200 text-slate-700 hover:border-indigo-400 hover:bg-white";
+          if (selectedOpt !== null) {
+            if (i === correctIdx) btnStyle = "bg-emerald-50 border-emerald-400 text-emerald-800 shadow-sm"; 
+            else if (i === selectedOpt) btnStyle = "bg-rose-50 border-rose-400 text-rose-800"; 
+            else btnStyle = "bg-slate-100 border-slate-200 text-slate-400 opacity-50"; 
+          }
+          return (
+            <button key={i} onClick={() => handleSelect(i)} disabled={selectedOpt !== null} className={`w-full text-left px-6 py-4 rounded-xl border-2 text-base md:text-lg font-bold transition-all ${btnStyle} flex gap-4 items-center`}>
+              <span className="font-black opacity-40 shrink-0">({i + 1})</span><span>{opt}</span>
+            </button>
+          );
+        })}
+      </div>
+      {showExplanation && qData.Explanation && (
+        <div className="p-6 bg-indigo-50 border border-indigo-200 rounded-xl animate-fade-in shadow-sm">
+          <span className="text-xs font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2 mb-2">
+            <span className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse"></span> Expert Analysis
+          </span>
+          <p className="text-base md:text-lg text-indigo-900 leading-relaxed font-medium">{qData.Explanation}</p>
+        </div>
+      )}
+    </div>
+  );
+};
+
 
 export default function TeachingDashboard() {
   const [lessonData, setLessonData] = useState([]);
@@ -115,7 +264,6 @@ export default function TeachingDashboard() {
   const [isMediaBayOpen, setIsMediaBayOpen] = useState(false);
   const [isAssetMenuOpen, setIsAssetMenuOpen] = useState(false); 
   
-  // 🔥 NEW: MCQ State and Updated Asset State
   const [newAsset, setNewAsset] = useState({ title: '', type: 'image', payload: '' });
   const [mcqForm, setMcqForm] = useState({ question: '', optA: '', optB: '', optC: '', optD: '', correct: 'A', explanation: '' });
   const [newPrePoint, setNewPrePoint] = useState('');
@@ -362,7 +510,6 @@ export default function TeachingDashboard() {
     } catch { return []; }
   })();
 
-  // 🔥 UPGRADED: Handles Saving both Standard Assets and Custom MCQs
   const handleAddAsset = () => {
     let finalPayload = newAsset.payload;
 
@@ -371,7 +518,6 @@ export default function TeachingDashboard() {
       if (!mcqForm.question || !mcqForm.optA || !mcqForm.optB || !mcqForm.optC || !mcqForm.optD) {
         return alert("Please fill out the question text and all 4 options!");
       }
-      // Stringify the MCQ object so it can be saved in the database
       finalPayload = JSON.stringify(mcqForm);
     } else {
       if (!newAsset.title || !newAsset.payload) return alert("Title and Content/UID are required!");
@@ -380,7 +526,6 @@ export default function TeachingDashboard() {
     const updatedAssets = [...currentAssets, { id: Date.now().toString(), title: newAsset.title, type: newAsset.type, payload: finalPayload }];
     commitToCloud(updatedAssets);
     
-    // Reset forms
     setNewAsset({ title: '', type: 'image', payload: '' });
     setMcqForm({ question: '', optA: '', optB: '', optC: '', optD: '', correct: 'A', explanation: '' });
   };
@@ -401,7 +546,6 @@ export default function TeachingDashboard() {
 
   const toggleLMS = (key) => setCollapsedLMS(p => ({ ...p, [key]: !p[key] }));
 
-  // Helper for dynamic icons
   const getAssetIcon = (type) => {
     return type === 'svg' ? '🧬' : type === 'youtube' ? '▶️' : type === 'question' ? '❓' : type === 'custom_mcq' ? '📝' : type === 'code' ? '💻' : type === 'mnemonic' ? '🧠' : '🖼️';
   };
@@ -756,7 +900,6 @@ export default function TeachingDashboard() {
                       {currentAssets.length === 0 && <div className="col-span-2 text-center p-3 bg-slate-50 border border-dashed border-slate-300 rounded-xl text-slate-400 font-mono text-xs">No media or question assets queued yet.</div>}
                     </div>
 
-                    {/* 🔥 THE UPGRADED ASSET BUILDER FORMS */}
                     <div className="w-full bg-slate-50 p-5 rounded-2xl border border-slate-200 shadow-sm text-left overflow-visible relative">
                       <div className="grid grid-cols-2 gap-3 mb-3">
                         <div>
@@ -787,7 +930,6 @@ export default function TeachingDashboard() {
                         </div>
                       </div>
                       
-                      {/* DYNAMIC FORM RENDERER BASED ON ASSET TYPE */}
                       {newAsset.type === 'custom_mcq' ? (
                         <div className="mb-4 space-y-2 bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
                           <label className="text-[10px] font-mono font-bold text-indigo-600 uppercase">MCQ Builder</label>
@@ -898,98 +1040,124 @@ export default function TeachingDashboard() {
                 </div>
               )}
 
+              {/* 🔥 THE ELITE ACADEMIC PRESENTATION CANVAS (FIXED CLIPPING) */}
               {activeOverlay && (() => {
                 const triggerAsset = currentAssets.find(a => a.id === activeOverlay);
                 if (!triggerAsset) return null;
                 return (
-                  <div className="absolute inset-0 flex items-center justify-center z-50 animate-fade-in pointer-events-none p-2 md:p-6">
-                    <div className={`p-4 rounded-3xl w-full max-w-5xl max-h-[88vh] flex flex-col relative pointer-events-auto transition-all shadow-2xl ${
-                      chromaMode ? 'bg-[#00FF00] border-none' : 'bg-white/95 backdrop-blur-xl border border-slate-200'
+                  <div className="absolute inset-0 flex items-center justify-center z-50 animate-fade-in pointer-events-none p-4">
+                    
+                    <div className={`w-[96vw] max-w-[1600px] h-[94vh] flex flex-col pointer-events-auto transition-all duration-300 shadow-[0_0_80px_rgba(0,0,0,0.8)] rounded-2xl overflow-hidden ${
+                      chromaMode ? 'bg-[#00FF00] border-none' : 'bg-slate-100/95 backdrop-blur-xl border border-slate-300'
                     }`}>
                       
-                      <span className={`absolute top-3.5 left-6 text-[10px] font-black tracking-widest uppercase z-10 px-2.5 py-1 rounded flex items-center gap-2 ${
-                        chromaMode ? 'bg-slate-900 text-[#00FF00]' : 'bg-slate-100 text-slate-500 border border-slate-200'
-                      }`}><span>{getAssetIcon(triggerAsset.type)}</span> {triggerAsset.title}</span>
+                      {/* HEADER BAR */}
+                      <div className={`flex justify-between items-center px-6 py-3 border-b shrink-0 ${chromaMode ? 'bg-slate-900 border-slate-900' : 'bg-white border-slate-200 shadow-sm'}`}>
+                        <div className="flex items-center gap-3">
+                          <span className={`text-[10px] font-black tracking-widest uppercase px-3 py-1 rounded-md ${chromaMode ? 'bg-slate-800 text-[#00FF00]' : 'bg-slate-100 text-slate-500 border border-slate-200'}`}>
+                            {getAssetIcon(triggerAsset.type)} PRESENTATION MODE
+                          </span>
+                          <span className={`text-sm font-bold truncate max-w-md ${chromaMode ? 'text-white' : 'text-slate-800'}`}>
+                            {triggerAsset.title}
+                          </span>
+                        </div>
 
-                      <div className="absolute top-2.5 right-6 flex items-center gap-2 z-20">
-                        {['image', 'svg'].includes(triggerAsset.type) && (
-                          <div className={`flex items-center rounded-lg border text-xs font-mono font-black shadow-sm overflow-hidden ${
-                            chromaMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-slate-100 border-slate-300 text-slate-800'
-                          }`}>
-                            <button onClick={() => setOverlayZoom(z => Math.max(0.5, Number((z - 0.25).toFixed(2))))} className="px-2.5 py-1 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors">−</button>
-                            <span className="px-2 py-1 select-none text-[10px] min-w-11 text-center">{Math.round(overlayZoom * 100)}%</span>
-                            <button onClick={() => setOverlayZoom(z => Math.min(3, Number((z + 0.25).toFixed(2))))} className="px-2.5 py-1 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors">+</button>
-                            {overlayZoom !== 1 && (
-                              <button onClick={() => setOverlayZoom(1)} className="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-[9px] font-bold tracking-tighter uppercase transition-colors">FIT</button>
-                            )}
-                          </div>
-                        )}
-                        <button onClick={() => { setActiveOverlay(null); setOverlayZoom(1); }} className={`font-bold px-3 py-1 rounded-lg text-xs border shadow-sm transition-all ${
-                          chromaMode ? 'bg-slate-900 text-white border-slate-900' : 'text-rose-600 hover:bg-rose-50 border-rose-200 bg-white'
-                        }`}>CLOSE ✕</button>
+                        <div className="flex items-center gap-3">
+                          {['image', 'svg'].includes(triggerAsset.type) && (
+                            <div className={`flex items-center rounded-lg border text-xs font-mono font-black shadow-sm overflow-hidden ${chromaMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-800'}`}>
+                              <button onClick={() => setOverlayZoom(z => Math.max(0.5, Number((z - 0.25).toFixed(2))))} className="px-3 py-1 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">−</button>
+                              <span className="px-3 py-1 select-none text-[10px] min-w-12 text-center">{Math.round(overlayZoom * 100)}%</span>
+                              <button onClick={() => setOverlayZoom(z => Math.min(4, Number((z + 0.25).toFixed(2))))} className="px-3 py-1 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">+</button>
+                              {overlayZoom !== 1 && (
+                                <button onClick={() => setOverlayZoom(1)} className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-[9px] font-bold tracking-tighter uppercase transition-colors">FIT</button>
+                              )}
+                            </div>
+                          )}
+                          <button onClick={() => { setActiveOverlay(null); setOverlayZoom(1); }} className={`font-bold px-5 py-1.5 rounded-lg text-xs shadow-sm transition-all ${chromaMode ? 'bg-slate-900 text-white hover:bg-slate-800 border border-slate-700' : 'bg-rose-500 hover:bg-rose-600 text-white border border-rose-600'}`}>
+                            EXIT PRESENTATION ✕
+                          </button>
+                        </div>
                       </div>
                       
-                      <div className="mt-12 mb-2 w-full overflow-auto custom-scrollbar max-h-[74vh] text-center p-2">
+                      {/* HUGE CONTENT AREA (FLEX-COL + MY-AUTO FIXES ALL OVERFLOW CLIPPING) */}
+                      <div className="flex-1 w-full h-full overflow-y-auto custom-scrollbar flex flex-col p-4 md:p-8 relative bg-slate-200/50">
+                        
                         {triggerAsset.type === 'youtube' && getYoutubeId(triggerAsset.payload) ? (
-                          <iframe width="850" height="480" src={`https://www.youtube.com/embed/${getYoutubeId(triggerAsset.payload)}?autoplay=1`} frameBorder="0" allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen className="rounded-xl border border-slate-200 shadow-md max-w-full inline-block align-middle" />
+                          <div className="my-auto mx-auto w-full max-w-7xl shrink-0 shadow-2xl rounded-2xl overflow-hidden border border-slate-800 bg-black aspect-video">
+                            <iframe className="w-full h-full" src={`https://www.youtube.com/embed/${getYoutubeId(triggerAsset.payload)}?autoplay=1`} frameBorder="0" allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen />
+                          </div>
                         
                         ) : triggerAsset.type === 'image' ? (
-                          <div style={{ width: `${overlayZoom * 100}%` }} className="inline-block align-middle transition-all duration-150">
-                            <img src={triggerAsset.payload} alt={triggerAsset.title} className={overlayZoom === 1 ? "max-h-[68vh] max-w-full object-contain rounded border border-slate-200 mx-auto" : "w-full h-auto rounded shadow-lg mx-auto"} />
+                          <div className="my-auto mx-auto shrink-0 transition-transform duration-200" style={{ transform: `scale(${overlayZoom})`, transformOrigin: 'top center' }}>
+                            <img src={triggerAsset.payload} alt={triggerAsset.title} className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl border border-slate-300 bg-white" />
                           </div>
                         
                         ) : triggerAsset.type === 'question' ? (
-                          <div className={`w-full max-w-3xl rounded-2xl p-8 text-left font-mono animate-fade-in inline-block align-middle ${
-                            chromaMode ? 'bg-transparent text-white drop-shadow-xl' : 'bg-white text-slate-900 border border-slate-200 shadow-xl'
-                          }`}>
-                            <div className={`flex items-center justify-between border-b pb-3 mb-6 ${chromaMode ? 'border-slate-800' : 'border-slate-200'}`}><span className={`text-[11px] font-black tracking-widest px-3 py-1 rounded-md uppercase border ${chromaMode ? 'bg-slate-900 text-[#00FF00] border-slate-900' : 'bg-indigo-50 text-indigo-600 border-indigo-100'}`}>⚠️ NERDSCHOOL EXAM INTEL</span><span className={`text-[10px] font-bold ${chromaMode ? 'text-slate-800' : 'text-slate-500'}`} style={videoTextArmor}>UGC NET TREND ANALYSIS</span></div>
-                            <p className="text-xl md:text-2xl font-bold leading-relaxed whitespace-pre-wrap tracking-tight" style={videoTextArmor}>Question Target UID: {triggerAsset.payload}</p>
+                          <div className="my-auto mx-auto w-full max-w-5xl bg-white p-8 md:p-14 rounded-3xl shadow-2xl border border-slate-200 shrink-0">
+                            <PyqInteractiveBlock questionTarget={triggerAsset.payload} />
                           </div>
                         
                         ) : triggerAsset.type === 'custom_mcq' ? (
-                          // 🔥 THE NEW MCQ TEACHER PREVIEW RENDERER
-                          <div className={`w-full max-w-3xl rounded-2xl p-8 text-left animate-fade-in inline-block align-middle shadow-xl border ${
-                            chromaMode ? 'bg-slate-900 text-white border-slate-700' : 'bg-white text-slate-900 border-slate-200'
-                          }`}>
-                            <div className={`flex items-center justify-between border-b pb-3 mb-6 ${chromaMode ? 'border-slate-800' : 'border-slate-200'}`}>
-                              <span className="text-[11px] font-black tracking-widest px-3 py-1 rounded-md uppercase border bg-amber-100 text-amber-800 border-amber-200">📝 TEACHER PREVIEW: CUSTOM MCQ</span>
+                          <div className="my-auto mx-auto w-full max-w-5xl bg-white p-8 md:p-14 rounded-3xl shadow-2xl border border-slate-200 shrink-0">
+                            <div className="flex items-center justify-between border-b border-slate-200 pb-4 mb-8">
+                              <span className="text-[12px] font-black tracking-widest px-4 py-1.5 rounded-lg uppercase border bg-amber-100 text-amber-800 border-amber-200">📝 TEACHER PREVIEW: CUSTOM MCQ</span>
                             </div>
-                            
-                            <p className="text-xl md:text-2xl font-bold leading-relaxed whitespace-pre-wrap mb-6" style={videoTextArmor}>
+                            <p className="text-2xl md:text-3xl font-bold leading-relaxed whitespace-pre-wrap mb-10 text-slate-800">
                               {JSON.parse(triggerAsset.payload || '{}').question}
                             </p>
-                            
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
                               {['A', 'B', 'C', 'D'].map(opt => {
                                 const mcqData = JSON.parse(triggerAsset.payload || '{}');
                                 const isCorrect = mcqData.correct === opt;
                                 return (
-                                  <div key={opt} className={`p-4 rounded-xl border-2 text-sm font-bold flex items-center gap-3 ${
-                                    isCorrect ? 'bg-emerald-50 border-emerald-400 text-emerald-800' : 'bg-slate-50 border-slate-200 text-slate-600'
-                                  }`}>
-                                    <span className={`h-6 w-6 flex items-center justify-center rounded-full text-xs shrink-0 ${isCorrect ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-500'}`}>{opt}</span>
+                                  <div key={opt} className={`p-6 rounded-2xl border-2 text-lg font-bold flex items-center gap-4 ${isCorrect ? 'bg-emerald-50 border-emerald-400 text-emerald-800 shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-600'}`}>
+                                    <span className={`h-8 w-8 flex items-center justify-center rounded-full text-sm shrink-0 ${isCorrect ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-500'}`}>{opt}</span>
                                     <span>{mcqData[`opt${opt}`]}</span>
                                   </div>
                                 );
                               })}
                             </div>
-                            
                             {JSON.parse(triggerAsset.payload || '{}').explanation && (
-                              <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-xl text-sm text-indigo-900">
-                                <strong className="font-black text-indigo-600 block mb-1">TEACHER EXPLANATION:</strong> 
+                              <div className="p-6 bg-indigo-50 border border-indigo-200 rounded-2xl text-lg text-indigo-900 shadow-sm">
+                                <strong className="font-black text-indigo-600 block mb-2 uppercase tracking-widest text-sm">Teacher Explanation:</strong> 
                                 {JSON.parse(triggerAsset.payload || '{}').explanation}
                               </div>
                             )}
                           </div>
 
+                        ) : triggerAsset.type === 'svg' ? (
+                          <div className="my-auto mx-auto w-full max-w-6xl flex flex-col shrink-0 transition-transform" style={{ transform: `scale(${overlayZoom})`, transformOrigin: 'top center' }}>
+                             <div className="w-full min-h-[80vh] flex flex-col bg-white rounded-2xl shadow-2xl border border-slate-300 overflow-hidden">
+                               <div className="w-full h-10 bg-slate-100 border-b border-slate-200 flex items-center px-5 shrink-0">
+                                 <div className="flex gap-2"><div className="w-3 h-3 rounded-full bg-rose-400"></div><div className="w-3 h-3 rounded-full bg-amber-400"></div><div className="w-3 h-3 rounded-full bg-emerald-400"></div></div>
+                                 <span className="ml-5 text-[11px] font-mono text-slate-400 font-bold uppercase tracking-widest">NerdSchool CodeWeb Canvas</span>
+                               </div>
+                               <iframe srcDoc={getIframeDoc(triggerAsset.payload)} className="w-full flex-1 min-h-[80vh] border-none bg-white" sandbox="allow-scripts allow-same-origin" />
+                             </div>
+                          </div>
+                           
+                        ) : triggerAsset.type === 'mnemonic' ? (
+                          <div className="my-auto mx-auto w-full max-w-5xl bg-gradient-to-br from-amber-400 to-orange-600 rounded-[3rem] p-12 md:p-20 shadow-2xl text-center relative overflow-hidden shrink-0">
+                            <div className="absolute top-0 right-0 opacity-10 text-[250px] -mt-16 -mr-10 select-none pointer-events-none">🧠</div>
+                            <h3 className="text-amber-100 font-black tracking-widest uppercase mb-6 text-xl drop-shadow-md">Memory Hack</h3>
+                            <p className="text-4xl md:text-6xl font-black text-white leading-tight drop-shadow-xl">{triggerAsset.payload}</p>
+                          </div>
+                          
+                        ) : triggerAsset.type === 'code' ? (
+                          <div className="my-auto mx-auto w-full max-w-5xl flex flex-col bg-[#0a0f1c] rounded-3xl shadow-2xl border border-slate-700 overflow-hidden shrink-0 max-h-[85vh]">
+                              <div className="h-14 bg-slate-900 border-b border-slate-800 flex items-center px-6 shrink-0">
+                                  <div className="flex gap-2"><div className="w-3.5 h-3.5 rounded-full bg-rose-500"></div><div className="w-3.5 h-3.5 rounded-full bg-amber-500"></div><div className="w-3.5 h-3.5 rounded-full bg-emerald-500"></div></div>
+                                  <span className="ml-6 font-mono text-sm text-slate-500 font-bold">syntax_expansion.sh</span>
+                              </div>
+                              <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+                                  <pre className="font-mono text-cyan-400 text-xl md:text-2xl leading-relaxed tracking-wide whitespace-pre-wrap">
+                                      <code>{triggerAsset.payload}</code>
+                                  </pre>
+                              </div>
+                          </div>
+                          
                         ) : (
-                          <div 
-                            style={{ width: `${overlayZoom * 100}%` }} 
-                            className={`inline-block align-middle transition-all duration-150 ${
-                              overlayZoom === 1 ? '[&_svg]:max-h-[66vh] [&_svg]:max-w-full [&_svg]:w-auto [&_svg]:h-auto [&_svg]:mx-auto' : '[&_svg]:w-full [&_svg]:h-auto [&_svg]:mx-auto'
-                            }`}
-                            dangerouslySetInnerHTML={{ __html: triggerAsset.payload }} 
-                          />
+                          <div className="my-auto mx-auto p-10 text-slate-500 font-mono">Unknown asset type.</div>
                         )}
                       </div>
 
