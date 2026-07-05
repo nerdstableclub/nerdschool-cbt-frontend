@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 
-// 🔥 Added onBackToCourse to the props here!
 export default function PyqEngine({ user, onBack, onBackToCourse }) {
   const [query, setQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
@@ -14,10 +13,49 @@ export default function PyqEngine({ user, onBack, onBackToCourse }) {
   const [answers, setAnswers] = useState({}); // Stores user answers: { questionIndex: selectedOptionIndex }
   const [testFinished, setTestFinished] = useState(false);
 
+  // Security & Trial State
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [searchesLeft, setSearchesLeft] = useState(3);
+
+  // Check if student has unlimited JRF / Premium access
+  const hasUnlimitedAccess = () => {
+    if (!user) return false;
+    const userPlans = Array.isArray(user.plans) ? user.plans : 
+                      typeof user.ActivePlans === 'string' ? user.ActivePlans.split(',').map(p => p.trim()) : 
+                      typeof user.plans === 'string' ? user.plans.split(',').map(p => p.trim()) :
+                      [];
+    return userPlans.some(p => {
+      const lower = (p || '').toLowerCase();
+      return lower.includes('premium') || lower.includes('jrf') || lower.includes('pyq');
+    });
+  };
+
+  const isUnlimited = hasUnlimitedAccess();
+
+  // Load remaining free searches from device memory on boot
+  useEffect(() => {
+    if (!isUnlimited) {
+      const storageKey = `ns_pyq_trial_${user?.rollNumber || 'guest'}`;
+      const savedCount = localStorage.getItem(storageKey);
+      if (savedCount !== null) {
+        setSearchesLeft(parseInt(savedCount, 10));
+      } else {
+        localStorage.setItem(storageKey, '3');
+        setSearchesLeft(3);
+      }
+    }
+  }, [user, isUnlimited]);
+
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!query.trim()) return;
     
+    // BOUNCER CHECK: Block search if out of free trials!
+    if (!isUnlimited && searchesLeft <= 0) {
+      setShowUpgradeModal(true);
+      return;
+    }
+
     setIsSearching(true);
     setHasSearched(true);
     try {
@@ -27,6 +65,13 @@ export default function PyqEngine({ user, onBack, onBackToCourse }) {
       if (data.success) {
         setAvailableQuestions(data.data);
         setTotalFound(data.totalFound);
+        
+        // Decrement free search counter after a successful search
+        if (!isUnlimited) {
+          const newCount = Math.max(0, searchesLeft - 1);
+          setSearchesLeft(newCount);
+          localStorage.setItem(`ns_pyq_trial_${user?.rollNumber || 'guest'}`, String(newCount));
+        }
       }
     } catch (err) {
       console.error("Failed to fetch PYQs", err);
@@ -72,7 +117,7 @@ export default function PyqEngine({ user, onBack, onBackToCourse }) {
   // -------------------------------------------------------------
   if (!testMode) {
     return (
-      <div className="h-screen w-full bg-slate-950 text-slate-200 flex flex-col font-sans overflow-hidden bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-slate-950">
+      <div className="h-screen w-full bg-slate-950 text-slate-200 flex flex-col font-sans overflow-hidden bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-slate-950 relative">
         
         {/* Header */}
         <header className="h-16 bg-slate-900/80 border-b border-slate-800 flex items-center justify-between px-6 shrink-0 z-20 backdrop-blur-md">
@@ -81,19 +126,34 @@ export default function PyqEngine({ user, onBack, onBackToCourse }) {
             <h1 className="font-black tracking-widest uppercase text-fuchsia-400">PYQ Infinity Engine</h1>
           </div>
           <div className="flex items-center gap-3">
-            {/* 🔥 The new Back To Course button! */}
+            {/* Status Badge */}
+            <div className={`hidden md:flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${isUnlimited ? 'bg-fuchsia-950/50 border-fuchsia-800/50 text-fuchsia-300' : searchesLeft > 0 ? 'bg-amber-950/50 border-amber-800/50 text-amber-300' : 'bg-rose-950/50 border-rose-800/50 text-rose-300'}`}>
+              <span>{isUnlimited ? '👑 Unlimited Access' : `🎁 Free Trial: ${searchesLeft} / 3 Left`}</span>
+            </div>
             <button onClick={onBackToCourse || (() => window.history.back())} className="px-4 py-1.5 bg-fuchsia-900/50 hover:bg-fuchsia-800 text-fuchsia-300 text-xs font-bold rounded-md transition-colors border border-fuchsia-700/50">📺 Course Hub</button>
             <button onClick={onBack} className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-md transition-colors border border-slate-700">← Hub</button>
           </div>
         </header>
 
-        <div className="flex-1 flex flex-col items-center justify-center p-6 w-full max-w-4xl mx-auto text-center">
+        <div className="flex-1 flex flex-col items-center justify-center p-6 w-full max-w-4xl mx-auto text-center overflow-y-auto">
           <h2 className="text-4xl md:text-5xl font-black text-white mb-4 tracking-tight drop-shadow-lg">
             Generate Custom Exams.
           </h2>
-          <p className="text-slate-400 font-medium mb-10 text-lg">
+          <p className="text-slate-400 font-medium mb-8 text-lg">
             Search an author, movement, or concept to instantly compile a targeted PYQ test.
           </p>
+
+          {/* Mobile Trial Counter Notice */}
+          {!isUnlimited && (
+            <div className="mb-6 inline-flex items-center gap-2 bg-slate-900 border border-slate-800 px-4 py-2 rounded-full text-xs font-bold">
+              <span className={searchesLeft > 0 ? "text-amber-400" : "text-rose-400"}>
+                {searchesLeft > 0 ? `⚡ You have ${searchesLeft} free trial search${searchesLeft === 1 ? '' : 'es'} remaining.` : '🔒 Free trial exhausted.'}
+              </span>
+              {searchesLeft === 0 && (
+                <button onClick={() => setShowUpgradeModal(true)} className="text-fuchsia-400 underline ml-1 font-black">Upgrade Now</button>
+              )}
+            </div>
+          )}
 
           <form onSubmit={handleSearch} className="w-full relative max-w-3xl mb-12 group">
             <div className="absolute inset-0 bg-fuchsia-500 rounded-2xl blur-xl opacity-20 group-hover:opacity-40 transition-opacity duration-500"></div>
@@ -106,14 +166,18 @@ export default function PyqEngine({ user, onBack, onBackToCourse }) {
                 placeholder="e.g. Jacques Derrida, Post-Colonialism, 2018..." 
                 className="flex-1 bg-transparent border-none outline-none p-6 text-xl font-bold text-white placeholder:text-slate-500"
               />
-              <button type="submit" disabled={isSearching || !query.trim()} className="px-10 py-6 bg-fuchsia-600 hover:bg-fuchsia-500 text-white font-black text-lg uppercase tracking-widest transition-colors disabled:opacity-50">
-                {isSearching ? 'SCANNING...' : 'GENERATE'}
+              <button 
+                type="submit" 
+                disabled={isSearching || !query.trim() || (!isUnlimited && searchesLeft <= 0)} 
+                className={`px-10 py-6 font-black text-lg uppercase tracking-widest transition-colors disabled:opacity-50 ${!isUnlimited && searchesLeft <= 0 ? 'bg-rose-600 hover:bg-rose-500 text-white' : 'bg-fuchsia-600 hover:bg-fuchsia-500 text-white'}`}
+              >
+                {isSearching ? 'SCANNING...' : !isUnlimited && searchesLeft <= 0 ? '🔒 LOCKED' : 'GENERATE'}
               </button>
             </div>
           </form>
 
           {hasSearched && !isSearching && (
-            <div className="animate-fade-in w-full max-w-3xl bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-xl">
+            <div className="animate-fade-in w-full max-w-3xl bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-xl mb-8">
               {availableQuestions.length > 0 ? (
                 <div className="flex flex-col items-center">
                   <div className="w-20 h-20 bg-fuchsia-500/20 rounded-full flex items-center justify-center mb-4 border border-fuchsia-500/50">
@@ -136,6 +200,73 @@ export default function PyqEngine({ user, onBack, onBackToCourse }) {
             </div>
           )}
         </div>
+
+        {/* 🔥 HIGH-CONVERSION UPGRADE PAYWALL MODAL */}
+        {showUpgradeModal && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-[100] p-4 animate-in fade-in duration-300">
+            <div className="bg-slate-900 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-800 relative transform transition-all scale-100 animate-in zoom-in-95">
+              
+              <button 
+                onClick={() => setShowUpgradeModal(false)}
+                className="absolute top-4 right-4 text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-full w-8 h-8 flex items-center justify-center transition-colors z-10 font-bold"
+              >
+                ✕
+              </button>
+
+              <div className="bg-gradient-to-br from-fuchsia-900 via-purple-900 to-indigo-950 p-8 text-center relative overflow-hidden">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white/10 via-transparent to-transparent"></div>
+                <div className="w-20 h-20 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm border border-white/20 shadow-lg">
+                  <span className="text-4xl">👑</span>
+                </div>
+                <h2 className="text-3xl font-black text-white mb-2 relative z-10 tracking-tight">PYQ Infinity Engine Locked</h2>
+                <p className="text-fuchsia-200 font-medium relative z-10 text-sm">You have used up your 3 free trial searches! Upgrade to unlock unlimited AI exam compilation.</p>
+              </div>
+
+              <div className="p-8 bg-slate-900">
+                <div className="space-y-3 mb-8">
+                  <div className="flex items-start gap-3 text-sm text-slate-300 font-medium">
+                    <span className="text-emerald-400 font-bold">✓</span>
+                    <span>Generate unlimited PYQ tests by author, era, or keyword</span>
+                  </div>
+                  <div className="flex items-start gap-3 text-sm text-slate-300 font-medium">
+                    <span className="text-emerald-400 font-bold">✓</span>
+                    <span>Access over 10,000+ historical NTA question archives</span>
+                  </div>
+                  <div className="flex items-start gap-3 text-sm text-slate-300 font-medium">
+                    <span className="text-emerald-400 font-bold">✓</span>
+                    <span>Detailed expert solutions & cognitive depth breakdowns</span>
+                  </div>
+                </div>
+
+                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 mb-6 text-center">
+                  <span className="text-slate-400 text-xs font-semibold block mb-1 uppercase tracking-wider">Choose Your Package</span>
+                  <span className="text-2xl font-black text-fuchsia-400">PDFs • Mocks • Full Course</span>
+                </div>
+
+                <div className="flex flex-col gap-3">
+                  {/* 🔥 UPDATED: Direct redirect to all product plans! */}
+                  <button 
+                    onClick={() => {
+                      window.open('https://notes.ugcnetenglish.in/products/', '_blank');
+                    }}
+                    className="w-full py-4 bg-gradient-to-r from-fuchsia-600 to-indigo-600 hover:from-fuchsia-500 hover:to-indigo-500 text-white font-black text-sm uppercase tracking-wider rounded-xl transition-all shadow-[0_0_25px_rgba(192,38,211,0.3)] flex items-center justify-center gap-2"
+                  >
+                    <span>View All Plans & Upgrade</span>
+                    <span className="text-lg">🚀</span>
+                  </button>
+
+                  <button 
+                    onClick={() => setShowUpgradeModal(false)}
+                    className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-colors"
+                  >
+                    Maybe Later
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
     );
   }

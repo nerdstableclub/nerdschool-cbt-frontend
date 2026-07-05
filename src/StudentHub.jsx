@@ -97,6 +97,46 @@ export default function StudentHub({ user, onSelectPath, onLogout }) {
             <div className="text-xs font-black text-emerald-400 uppercase tracking-widest flex items-center gap-2 group-hover:text-green-300 transition-colors">Enter Laboratory <span className="text-lg leading-none">→</span></div>
           </button>
 
+          {/* PORTAL 5: AUDIOBOOK & PODCASTS */}
+          <button 
+            onClick={() => onSelectPath('podcasts')}
+            className="group relative flex flex-col items-start p-8 rounded-3xl bg-slate-900/40 backdrop-blur-xl border border-slate-800 hover:border-violet-500/50 transition-all duration-500 text-left overflow-hidden hover:-translate-y-1 hover:shadow-[0_20px_40px_-15px_rgba(139,92,246,0.3)]"
+          >
+            <div className="absolute top-0 right-0 w-32 h-32 bg-violet-500/10 rounded-full blur-3xl group-hover:bg-violet-500/20 transition-all"></div>
+            <div className="w-14 h-14 rounded-2xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-3xl mb-6 group-hover:scale-110 group-hover:bg-violet-500 text-violet-400 group-hover:text-white transition-all duration-300 shadow-inner">🎧</div>
+            <h2 className="text-2xl font-black text-white mb-3">Audiobook Library</h2>
+            <p className="text-sm font-medium text-slate-400 leading-relaxed mb-8 flex-1">Listen to premium chapter breakdowns, motivational sessions, and theories on the go.</p>
+            <div className="text-xs font-black text-violet-400 uppercase tracking-widest flex items-center gap-2 group-hover:text-purple-300 transition-colors">Start Listening <span className="text-lg leading-none">→</span></div>
+          </button>
+
+          {/* PDF STUDY VAULT BUTTON */}
+<button
+  onClick={() => onSelectPath('pdfs')}
+  className="bg-slate-900/80 hover:bg-slate-800 border-2 border-slate-800 hover:border-emerald-500/50 rounded-2xl p-6 text-left transition-all duration-300 group shadow-lg hover:shadow-[0_0_25px_rgba(5,150,105,0.2)] flex flex-col justify-between relative overflow-hidden"
+>
+  <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full blur-2xl group-hover:bg-emerald-500/10 transition-colors"></div>
+  
+  <div>
+    <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-2xl mb-4 group-hover:scale-110 transition-transform">
+      📚
+    </div>
+    <h3 className="text-lg font-black text-white group-hover:text-emerald-400 transition-colors mb-1">
+      PDF Study Vault
+    </h3>
+    <p className="text-slate-400 text-xs font-medium leading-relaxed">
+      View-only chapter notes, revision cheatcodes, and exclusive paper analysis.
+    </p>
+  </div>
+
+  <div className="mt-6 flex items-center justify-between text-xs font-bold pt-4 border-t border-slate-800/80">
+    <span className="text-emerald-400 flex items-center gap-1.5">
+      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+      20+ Folders Loaded
+    </span>
+    <span className="text-slate-500 group-hover:text-white transition-colors">Open Vault →</span>
+  </div>
+</button>
+
         </div>
       </main>
 

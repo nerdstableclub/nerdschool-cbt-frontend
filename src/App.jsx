@@ -6,6 +6,8 @@ import StudentHub from './StudentHub';
 import StudentDashboard from './StudentDashboard';
 import SynthesisLab from './SynthesisLab';
 import PyqEngine from './PyqEngine'; // <-- 🔥 NEW IMPORT
+import PodcastEngine from './PodcastEngine'; // <-- 🔥 NEW IMPORT
+import PDFEngine from './PDFEngine';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -392,6 +394,8 @@ function App() {
           if (path === 'lms') setAppMode('lms');
           if (path === 'pyq_engine') setAppMode('pyq_engine');
           if (path === 'synthesis_lab') setAppMode('synthesis_lab');
+          if (path === 'podcasts') setAppMode('podcasts');
+          if (path === 'pdfs' || path === 'pdf_vault') setAppMode('pdfs');
         }} 
         onLogout={() => { setCurrentUser(null); setAppMode('auth'); }} 
       />
@@ -402,6 +406,21 @@ function App() {
   if (appMode === 'pyq_engine') {
     return <PyqEngine user={currentUser} onBack={() => setAppMode('hub')} onBackToCourse={() => setAppMode('lms')} />;
   }
+  
+  // 🔥 AUDIOBOOK / PODCAST ROUTE
+  if (appMode === 'podcasts') {
+    return <PodcastEngine user={currentUser} onBack={() => setAppMode('hub')} onBackToCourse={() => setAppMode('lms')} />;
+  }
+
+  if (appMode === 'pdfs') {
+  return (
+    <PDFEngine 
+      user={currentUser} 
+      onBack={() => setAppMode('hub')} 
+      onBackToCourse={() => setAppMode('hub')} 
+    />
+  );
+}
 
   // 🔥 SYNTHESIS LAB ROUTE (with BackToCourse injected)
   if (appMode === 'synthesis_lab') {
