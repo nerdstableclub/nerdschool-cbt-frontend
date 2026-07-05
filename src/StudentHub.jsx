@@ -35,18 +35,18 @@ export default function StudentHub({ user, onSelectPath, onLogout }) {
       </header>
 
       {/* MAIN VIEWPORT */}
-      <main className="flex-1 flex flex-col items-center justify-center p-6 relative z-10">
+      <main className="flex-1 flex flex-col items-center justify-center p-6 relative z-10 my-8">
         
         <div className="text-center mb-12 animate-fade-in">
           <h1 className="text-4xl md:text-5xl font-black mb-4 tracking-tight drop-shadow-md">
             Welcome back, <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">{studentName}</span>.
           </h1>
           <p className="text-slate-400 font-medium max-w-lg mx-auto">
-            Select your destination. Enter the premium course modules or test your knowledge in the live exam engine.
+            Select your destination. Enter the premium course modules, train your memory, or test your knowledge.
           </p>
         </div>
 
-        {/* THE PORTALS */}
+        {/* THE PORTALS - 2x2 GRID FOR 4 PILLARS */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl w-full">
           
           {/* PORTAL 1: THE NEW LMS */}
@@ -55,19 +55,10 @@ export default function StudentHub({ user, onSelectPath, onLogout }) {
             className="group relative flex flex-col items-start p-8 rounded-3xl bg-slate-900/40 backdrop-blur-xl border border-slate-800 hover:border-indigo-500/50 transition-all duration-500 text-left overflow-hidden hover:-translate-y-1 hover:shadow-[0_20px_40px_-15px_rgba(79,70,229,0.3)]"
           >
             <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-3xl group-hover:bg-indigo-500/20 transition-all"></div>
-            
-            <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-3xl mb-6 group-hover:scale-110 group-hover:bg-indigo-500 text-indigo-400 group-hover:text-white transition-all duration-300 shadow-inner">
-              📚
-            </div>
-            
+            <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-3xl mb-6 group-hover:scale-110 group-hover:bg-indigo-500 text-indigo-400 group-hover:text-white transition-all duration-300 shadow-inner">📚</div>
             <h2 className="text-2xl font-black text-white mb-3">Premium Course & LMS</h2>
-            <p className="text-sm font-medium text-slate-400 leading-relaxed mb-8 flex-1">
-              Access interactive study modules, active recall flashcards, video lectures, mnemonics, and high-yield PDF notes.
-            </p>
-            
-            <div className="text-xs font-black text-indigo-400 uppercase tracking-widest flex items-center gap-2 group-hover:text-cyan-400 transition-colors">
-              Enter Dashboard <span className="text-lg leading-none">→</span>
-            </div>
+            <p className="text-sm font-medium text-slate-400 leading-relaxed mb-8 flex-1">Access interactive study modules, video lectures, mnemonics, and high-yield PDF notes.</p>
+            <div className="text-xs font-black text-indigo-400 uppercase tracking-widest flex items-center gap-2 group-hover:text-cyan-400 transition-colors">Enter Dashboard <span className="text-lg leading-none">→</span></div>
           </button>
 
           {/* PORTAL 2: THE EXISTING CBT ENGINE */}
@@ -76,19 +67,34 @@ export default function StudentHub({ user, onSelectPath, onLogout }) {
             className="group relative flex flex-col items-start p-8 rounded-3xl bg-slate-900/40 backdrop-blur-xl border border-slate-800 hover:border-blue-500/50 transition-all duration-500 text-left overflow-hidden hover:-translate-y-1 hover:shadow-[0_20px_40px_-15px_rgba(59,130,246,0.3)]"
           >
             <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl group-hover:bg-blue-500/20 transition-all"></div>
-            
-            <div className="w-14 h-14 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-3xl mb-6 group-hover:scale-110 group-hover:bg-blue-500 text-blue-400 group-hover:text-white transition-all duration-300 shadow-inner">
-              📝
-            </div>
-            
+            <div className="w-14 h-14 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-3xl mb-6 group-hover:scale-110 group-hover:bg-blue-500 text-blue-400 group-hover:text-white transition-all duration-300 shadow-inner">📝</div>
             <h2 className="text-2xl font-black text-white mb-3">Live CBT Mock Tests</h2>
-            <p className="text-sm font-medium text-slate-400 leading-relaxed mb-8 flex-1">
-              Enter the exam simulation engine. Test your readiness against our 10,000+ PYQ database with strict timers and diagnostics.
-            </p>
-            
-            <div className="text-xs font-black text-blue-400 uppercase tracking-widest flex items-center gap-2 group-hover:text-cyan-400 transition-colors">
-              Start Simulation <span className="text-lg leading-none">→</span>
-            </div>
+            <p className="text-sm font-medium text-slate-400 leading-relaxed mb-8 flex-1">Enter the exam simulation engine. Test your readiness with strict timers and active-recall analytics.</p>
+            <div className="text-xs font-black text-blue-400 uppercase tracking-widest flex items-center gap-2 group-hover:text-cyan-400 transition-colors">Start Simulation <span className="text-lg leading-none">→</span></div>
+          </button>
+
+          {/* PORTAL 3: THE PYQ INFINITY ENGINE */}
+          <button 
+            onClick={() => onSelectPath('pyq_engine')}
+            className="group relative flex flex-col items-start p-8 rounded-3xl bg-slate-900/40 backdrop-blur-xl border border-slate-800 hover:border-fuchsia-500/50 transition-all duration-500 text-left overflow-hidden hover:-translate-y-1 hover:shadow-[0_20px_40px_-15px_rgba(217,70,239,0.3)]"
+          >
+            <div className="absolute top-0 right-0 w-32 h-32 bg-fuchsia-500/10 rounded-full blur-3xl group-hover:bg-fuchsia-500/20 transition-all"></div>
+            <div className="w-14 h-14 rounded-2xl bg-fuchsia-500/10 border border-fuchsia-500/20 flex items-center justify-center text-3xl mb-6 group-hover:scale-110 group-hover:bg-fuchsia-500 text-fuchsia-400 group-hover:text-white transition-all duration-300 shadow-inner">♾️</div>
+            <h2 className="text-2xl font-black text-white mb-3">PYQ Infinity Engine</h2>
+            <p className="text-sm font-medium text-slate-400 leading-relaxed mb-8 flex-1">Search by author, movement, or concept to instantly generate a hyper-targeted custom exam.</p>
+            <div className="text-xs font-black text-fuchsia-400 uppercase tracking-widest flex items-center gap-2 group-hover:text-pink-400 transition-colors">Generate Exam <span className="text-lg leading-none">→</span></div>
+          </button>
+
+          {/* PORTAL 4: THE SYNTHESIS LAB */}
+          <button 
+            onClick={() => onSelectPath('synthesis_lab')}
+            className="group relative flex flex-col items-start p-8 rounded-3xl bg-slate-900/40 backdrop-blur-xl border border-slate-800 hover:border-emerald-500/50 transition-all duration-500 text-left overflow-hidden hover:-translate-y-1 hover:shadow-[0_20px_40px_-15px_rgba(16,185,129,0.3)]"
+          >
+            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl group-hover:bg-emerald-500/20 transition-all"></div>
+            <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-3xl mb-6 group-hover:scale-110 group-hover:bg-emerald-500 text-emerald-400 group-hover:text-white transition-all duration-300 shadow-inner">✍️</div>
+            <h2 className="text-2xl font-black text-white mb-3">Synthesis Lab</h2>
+            <p className="text-sm font-medium text-slate-400 leading-relaxed mb-8 flex-1">Complete targeted homework directives, memory extraction games, and interactive web sandboxes.</p>
+            <div className="text-xs font-black text-emerald-400 uppercase tracking-widest flex items-center gap-2 group-hover:text-green-300 transition-colors">Enter Laboratory <span className="text-lg leading-none">→</span></div>
           </button>
 
         </div>

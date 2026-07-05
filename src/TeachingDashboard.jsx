@@ -259,6 +259,23 @@ export default function TeachingDashboard() {
     video_timestamp: ''
   });
   
+  // 🔥 CLASSWORK CREATOR STATE & MANAGER
+  const [isClassworkCreatorOpen, setIsClassworkCreatorOpen] = useState(false);
+  const [classworkViewMode, setClassworkViewMode] = useState('manage'); 
+  const [classworkList, setClassworkList] = useState([]);
+  const [editingClassworkId, setEditingClassworkId] = useState(null);
+  
+  const [classworkForm, setClassworkForm] = useState({
+    title: '',
+    required_plan: 'Free',
+    mission_directive: 'Synthesize the concept below.',
+    keywords: '',
+    mnemonic_code: '',
+    magic_paragraph: '', // This remains your HTML Sandbox
+    extractor_text: '',  // <-- 🔥 THIS IS YOUR NEW CONCEPT EXTRACTOR TEXTBOX
+    expansion: ''
+  });
+
   const [editingSlide, setEditingSlide] = useState(null); 
   const [collapsedLMS, setCollapsedLMS] = useState({}); 
   const [isMediaBayOpen, setIsMediaBayOpen] = useState(false);
@@ -320,7 +337,20 @@ export default function TeachingDashboard() {
     }
   };
 
+  const fetchClassworks = async () => {
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const res = await fetch(`${API_URL}/api/classwork`);
+      const data = await res.json();
+      if (data.success) setClassworkList(data.data);
+    } catch (err) { console.error("Failed to fetch classworks", err); }
+  };
+
   useEffect(() => { fetchLessonBank(); }, []);
+
+  useEffect(() => {
+    if (isClassworkCreatorOpen) fetchClassworks();
+  }, [isClassworkCreatorOpen]);
 
   const stateRef = useRef();
   useEffect(() => {
@@ -340,6 +370,7 @@ export default function TeachingDashboard() {
     setOverlayZoom(1); 
     setIsSpawning(false);
     setIsMediaBayOpen(false);
+    setIsClassworkCreatorOpen(false); 
     setIsAssetMenuOpen(false); 
     setEditingSlide(null);
     setStrokes([]); 
@@ -485,6 +516,58 @@ export default function TeachingDashboard() {
     } catch { setSaveStatus('error'); }
   };
 
+  // 🔥 CLASSWORK MANAGER CRUD FUNCTIONS
+  const handleSaveClasswork = async (e) => {
+    e.preventDefault();
+    if (!classworkForm.title) return alert("Assignment Title is required!");
+    setSaveStatus('saving');
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const endpoint = editingClassworkId ? '/api/edit-classwork' : '/api/create-classwork';
+      const payload = editingClassworkId ? { id: editingClassworkId, ...classworkForm } : classworkForm;
+
+      const res = await fetch(`${API_URL}${endpoint}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        alert(`Classwork ${editingClassworkId ? 'Updated' : 'Assigned'} Successfully!`);
+        setClassworkForm({ title: '', required_plan: 'Free', mission_directive: 'Synthesize the concept below.', keywords: '', mnemonic_code: '', magic_paragraph: '', extractor_text: '', expansion: '' });
+        setEditingClassworkId(null);
+        setClassworkViewMode('manage');
+        fetchClassworks();
+        setSaveStatus('idle');
+      } else setSaveStatus('error');
+    } catch { setSaveStatus('error'); }
+  };
+
+  const handleEditClassworkClick = (task) => {
+    setClassworkForm({
+      title: task.title || '',
+      required_plan: task.required_plan || 'Free',
+      mission_directive: task.mission_directive || task.instructions || '',
+      keywords: task.keywords || '',
+      mnemonic_code: task.mnemonic_code || '',
+      magic_paragraph: task.magic_paragraph || '',
+      extractor_text: task.extractor_text || '',
+      expansion: task.expansion || ''
+    });
+    setEditingClassworkId(task.id);
+    setClassworkViewMode('create');
+  };
+
+  const handleDeleteClasswork = async (id) => {
+    if (!window.confirm("Permanently delete this assignment?")) return;
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const res = await fetch(`${API_URL}/api/delete-classwork`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ assignmentId: id })
+      });
+      if ((await res.json()).success) fetchClassworks();
+    } catch { alert("Failed to delete."); }
+  };
+
   const getYoutubeId = (url) => {
     if(!url) return null;
     if (url.length === 11 && !url.includes('/') && !url.includes('?')) return url;
@@ -569,6 +652,7 @@ export default function TeachingDashboard() {
         setStageList([]); 
         setIsSpawning(false); 
         setIsMediaBayOpen(false); 
+        setIsClassworkCreatorOpen(false); 
         setIsAssetMenuOpen(false); 
         setEditingSlide(null); 
         setIsDrawMode(false); 
@@ -716,9 +800,12 @@ export default function TeachingDashboard() {
             <span className="text-[10px] text-slate-400 font-normal">[{activeIdx + 1}/{lessonData.length}]</span>
           </div>
 
-          <div className="p-2 border-b border-slate-200 bg-white grid grid-cols-2 gap-1.5">
-            <button onClick={() => { setIsSpawning(true); setIsMediaBayOpen(false); }} className="py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/80 rounded text-[10px] font-bold flex items-center justify-center gap-1 transition-all shadow-sm"><span>⚡</span> NEW SLIDE</button>
-            <button onClick={() => { setIsMediaBayOpen(true); setIsSpawning(false); }} className="py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200/80 rounded text-[10px] font-bold flex items-center justify-center gap-1 transition-all shadow-sm"><span>⚙️</span> MEDIA BAY</button>
+          <div className="p-2 border-b border-slate-200 bg-white grid grid-cols-3 gap-1.5">
+            <button onClick={() => { setIsSpawning(true); setIsMediaBayOpen(false); setIsClassworkCreatorOpen(false); }} className="py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/80 rounded text-[10px] font-bold flex items-center justify-center gap-1 transition-all shadow-sm"><span>⚡</span> SLIDE</button>
+            <button onClick={() => { setIsMediaBayOpen(true); setIsSpawning(false); setIsClassworkCreatorOpen(false); }} className="py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200/80 rounded text-[10px] font-bold flex items-center justify-center gap-1 transition-all shadow-sm"><span>⚙️</span> MEDIA</button>
+            
+            {/* 🔥 THE TASK BUTTON */}
+            <button onClick={() => { setIsClassworkCreatorOpen(true); setIsSpawning(false); setIsMediaBayOpen(false); setClassworkViewMode('manage'); }} className="py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/80 rounded text-[10px] font-bold flex items-center justify-center gap-1 transition-all shadow-sm"><span>✍️</span> TASK</button>
           </div>
 
           <div className="flex-1 overflow-y-auto p-2 space-y-3 custom-scrollbar">
@@ -734,9 +821,8 @@ export default function TeachingDashboard() {
                     <div key={chapter} className="pl-1.5 space-y-1">
                       <div onClick={() => toggleLMS(chapKey)} className="font-bold text-[10px] text-indigo-900/60 hover:text-indigo-900 uppercase py-1 border-b border-indigo-100/50 cursor-pointer flex justify-between items-center"><span className="truncate pr-2">{chapter}</span><span className="text-slate-300 text-[8px]">{collapsedLMS[chapKey] ? '▼' : '▲'}</span></div>
                       {!collapsedLMS[chapKey] && slides.map(slide => {
-                        const isActive = slide.originalIndex === activeIdx && !isSpawning && !isMediaBayOpen;
+                        const isActive = slide.originalIndex === activeIdx && !isSpawning && !isMediaBayOpen && !isClassworkCreatorOpen;
                         
-                        // INLINE EDITING
                         if (editingSlide?.step_id === slide.step_id) {
                           return (
                             <div key={slide.step_id} className="ml-2 p-2 bg-indigo-50 border border-indigo-200 rounded-md shadow-sm mb-1">
@@ -804,7 +890,7 @@ export default function TeachingDashboard() {
           }`}>
 
             {/* FIXED TOUCH-LOCK CANVAS */}
-            {(!isSpawning && !isMediaBayOpen) && (
+            {(!isSpawning && !isMediaBayOpen && !isClassworkCreatorOpen) && (
               <canvas 
                 ref={canvasRef}
                 width={1920}
@@ -1006,6 +1092,99 @@ export default function TeachingDashboard() {
                   </div>
                 </div>
 
+              ) : isClassworkCreatorOpen ? (
+                // 🔥 THE NEW CLASSWORK CREATOR PANEL WITH EDIT/DELETE
+                <div className="flex-1 flex flex-col items-center justify-start w-full max-w-5xl mx-auto py-2 h-full overflow-hidden relative z-50">
+                  <div className="w-full flex justify-between items-center mb-6 shrink-0">
+                    <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase flex items-center gap-2">
+                      <span className="text-emerald-500">✍️</span> Synthesis Lab Manager
+                    </h2>
+                    <div className="flex bg-slate-200 rounded-lg p-1">
+                      <button onClick={() => { setClassworkViewMode('manage'); setEditingClassworkId(null); setClassworkForm({ title: '', required_plan: 'Free', mission_directive: 'Synthesize the concept below.', keywords: '', mnemonic_code: '', magic_paragraph: '', extractor_text: '', expansion: '' }); }} className={`px-4 py-1.5 rounded-md text-xs font-bold uppercase transition-all ${classworkViewMode === 'manage' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}>Manage List</button>
+                      <button onClick={() => setClassworkViewMode('create')} className={`px-4 py-1.5 rounded-md text-xs font-bold uppercase transition-all ${classworkViewMode === 'create' ? 'bg-white shadow-sm text-emerald-600' : 'text-slate-500 hover:text-slate-700'}`}>{editingClassworkId ? 'Editing Mode' : 'Create New'}</button>
+                    </div>
+                  </div>
+                  
+                  {classworkViewMode === 'manage' ? (
+                    <div className="w-full flex-1 overflow-y-auto custom-scrollbar pr-2">
+                      {classworkList.length === 0 ? <p className="text-slate-500 font-mono text-sm py-10">No active classwork. Go create one!</p> : (
+                        <div className="grid grid-cols-1 gap-3">
+                          {classworkList.map(task => (
+                            <div key={task.id} className="bg-white border border-slate-200 p-4 rounded-xl shadow-sm flex items-center justify-between text-left hover:border-emerald-300 transition-colors">
+                              <div>
+                                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 bg-slate-100 px-2 py-0.5 rounded mr-2">{task.required_plan || 'Free'}</span>
+                                <span className="font-bold text-slate-800 text-lg">{task.title}</span>
+                                <div className="text-xs text-slate-500 font-medium mt-1 truncate max-w-lg">{task.mission_directive || task.instructions}</div>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <button onClick={() => handleEditClassworkClick(task)} className="px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 font-bold text-xs rounded border border-blue-200">Edit</button>
+                                <button onClick={() => handleDeleteClasswork(task.id)} className="px-3 py-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 font-bold text-xs rounded border border-rose-200">Delete</button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <form onSubmit={handleSaveClasswork} className="w-full flex-1 overflow-y-auto custom-scrollbar pr-2 text-left bg-slate-50 p-6 rounded-3xl border border-slate-200 shadow-inner space-y-4">
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className="col-span-2">
+                          <label className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">Assignment Title</label>
+                          <input type="text" required placeholder="e.g. Explain Derrida's Différance" value={classworkForm.title} onChange={e => setClassworkForm({...classworkForm, title: e.target.value})} className="w-full mt-1 p-3 bg-white border border-slate-300 rounded-xl font-bold text-sm text-slate-800 outline-none focus:border-emerald-500" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">Access Plan</label>
+                          <select value={classworkForm.required_plan} onChange={e => setClassworkForm({...classworkForm, required_plan: e.target.value})} className="w-full mt-1 p-3 bg-white border border-slate-300 rounded-xl font-bold text-sm text-slate-800 outline-none focus:border-emerald-500">
+                            {ACCESS_PLANS.map(plan => <option key={plan.value} value={plan.value}>{plan.label}</option>)}
+                          </select>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">Mission Directive (Instructions)</label>
+                        <input type="text" required value={classworkForm.mission_directive} onChange={e => setClassworkForm({...classworkForm, mission_directive: e.target.value})} className="w-full mt-1 p-3 bg-white border border-slate-300 rounded-xl font-medium text-sm text-slate-600 outline-none focus:border-emerald-500" />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">Target Keywords (Comma Separated)</label>
+                          <input type="text" placeholder="e.g. Deconstruction, Logocentrism" value={classworkForm.keywords} onChange={e => setClassworkForm({...classworkForm, keywords: e.target.value})} className="w-full mt-1 p-3 bg-white border border-slate-300 rounded-xl font-bold text-sm text-cyan-600 outline-none focus:border-emerald-500" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">Mnemonic Code (Small Badge)</label>
+                          <input type="text" placeholder="e.g. S-P-O-C" value={classworkForm.mnemonic_code} onChange={e => setClassworkForm({...classworkForm, mnemonic_code: e.target.value})} className="w-full mt-1 p-3 bg-white border border-slate-300 rounded-xl font-bold text-sm text-amber-600 outline-none focus:border-emerald-500" />
+                        </div>
+                      </div>
+
+                      <div className="border-t border-slate-200 pt-4 mt-2">
+                        <div className="flex justify-between items-center mb-1">
+                          <label className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Premium HTML Sandbox (Webview)</label>
+                          <span className="text-[9px] font-bold text-slate-400 bg-slate-200 px-2 py-0.5 rounded">Tailwind CSS is auto-injected. Paste HTML/JS widgets here.</span>
+                        </div>
+                        <textarea rows="4" placeholder="<div class='p-4 bg-blue-100 rounded'>Hello World</div>" value={classworkForm.magic_paragraph} onChange={e => setClassworkForm({...classworkForm, magic_paragraph: e.target.value})} className="w-full p-4 bg-[#f8fafc] text-indigo-900 border border-slate-300 rounded-xl font-mono text-sm outline-none focus:border-emerald-500 custom-scrollbar" />
+                      </div>
+
+                      <div className="border-t border-slate-200 pt-4 mt-2">
+                        <div className="flex justify-between items-center mb-1">
+                          <label className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Concept Extractor Game (Interactive Paragraph)</label>
+                          <span className="text-[9px] font-bold text-slate-400 bg-slate-200 px-2 py-0.5 rounded">Wrap target words in **asterisks** to make them clickable</span>
+                        </div>
+                        <textarea rows="4" placeholder="e.g. English literature encompasses works like **poetry** and **drama**." value={classworkForm.extractor_text} onChange={e => setClassworkForm({...classworkForm, extractor_text: e.target.value})} className="w-full p-4 bg-indigo-50 text-indigo-900 border border-indigo-200 rounded-xl font-medium text-sm outline-none focus:border-emerald-500 custom-scrollbar" />
+                      </div>
+
+                      <div className="border-t border-slate-200 pt-4 mt-2">
+                        <label className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider mb-1 block">Standard Source Material / Code Expansion</label>
+                        <textarea rows="4" placeholder="Paste standard text or code syntax here..." value={classworkForm.expansion} onChange={e => setClassworkForm({...classworkForm, expansion: e.target.value})} className="w-full p-4 bg-[#0a0f1c] text-cyan-400 border border-slate-300 rounded-xl font-mono text-sm outline-none focus:border-emerald-500 custom-scrollbar" />
+                      </div>
+
+                      <div className="flex gap-3 pt-2">
+                        <button type="button" onClick={() => setIsClassworkCreatorOpen(false)} className="flex-1 py-3 bg-white hover:bg-slate-100 text-slate-600 font-black text-xs uppercase tracking-widest rounded-xl border border-slate-300 transition-colors">CANCEL</button>
+                        <button type="submit" disabled={saveStatus === 'saving'} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-widest rounded-xl shadow-lg transition-all">{saveStatus === 'saving' ? 'SAVING...' : editingClassworkId ? '💾 UPDATE ASSIGNMENT' : '🚀 CREATE NEW ASSIGNMENT'}</button>
+                      </div>
+                    </form>
+                  )}
+                </div>
+
               ) : (
                 <div className={`transition-all duration-500 flex flex-col items-start w-full relative z-30 ${activeOverlay ? 'opacity-10 blur-sm scale-95' : 'opacity-100 blur-0 scale-100'}`}>
                   <h1 className={`text-2xl md:text-4xl font-black tracking-tight mb-6 mt-1 pb-3 select-none w-full text-left transition-all ${chromaMode ? 'text-white border-transparent' : 'text-slate-900 border-b border-slate-100'}`} style={videoTextArmor}>{currentStep.index_title}</h1>
@@ -1172,7 +1351,7 @@ export default function TeachingDashboard() {
             <div className={`min-h-14 rounded-xl p-2.5 flex items-center gap-2.5 overflow-x-auto z-50 select-none relative transition-colors ${chromaMode ? 'bg-transparent border-none' : 'bg-slate-50 border border-slate-200/80'}`}>
               <div className={`flex items-center gap-2 shrink-0 pr-3 border-r ${chromaMode ? 'border-slate-800' : 'border-slate-200'}`}>
                 <span className={`text-[10px] font-mono font-bold uppercase ${chromaMode ? 'text-slate-800' : 'text-slate-400'}`}>Pre-Points</span>
-                {!isSpawning && !isMediaBayOpen && (
+                {!isSpawning && !isMediaBayOpen && !isClassworkCreatorOpen && (
                   <button onClick={() => setRevealedCount(prev => prev + 1)} disabled={revealedCount >= safePrePoints.length} className={`px-2 py-0.5 disabled:opacity-30 rounded text-[10px] font-mono font-black shadow-sm ${chromaMode ? 'bg-white text-indigo-900 border border-transparent' : 'bg-white hover:bg-slate-100 text-indigo-600 border-slate-300'}`}>+ REVEAL [SPC]</button>
                 )}
               </div>
@@ -1217,8 +1396,8 @@ export default function TeachingDashboard() {
       {/* ZONE 4: FOOTER CONSOLE */}
       <footer className="bg-white border-t border-slate-200 px-6 h-16 flex items-center justify-between gap-6 z-[100] relative shrink-0 shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
         <div className="flex items-center gap-2">
-          <button disabled={activeIdx === 0 || isSpawning || isMediaBayOpen} onClick={() => syncSlideChange(activeIdx - 1)} className="px-4 py-2 bg-white hover:bg-slate-50 disabled:opacity-30 rounded-lg font-mono text-xs font-bold text-slate-700 border border-slate-300 shadow-sm">◄ PREV</button>
-          <button disabled={activeIdx === lessonData.length - 1 || isSpawning || isMediaBayOpen} onClick={() => syncSlideChange(activeIdx + 1)} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-30 rounded-lg font-mono text-xs font-bold text-white shadow-sm">NEXT ►</button>
+          <button disabled={activeIdx === 0 || isSpawning || isMediaBayOpen || isClassworkCreatorOpen} onClick={() => syncSlideChange(activeIdx - 1)} className="px-4 py-2 bg-white hover:bg-slate-50 disabled:opacity-30 rounded-lg font-mono text-xs font-bold text-slate-700 border border-slate-300 shadow-sm">◄ PREV</button>
+          <button disabled={activeIdx === lessonData.length - 1 || isSpawning || isMediaBayOpen || isClassworkCreatorOpen} onClick={() => syncSlideChange(activeIdx + 1)} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-30 rounded-lg font-mono text-xs font-bold text-white shadow-sm">NEXT ►</button>
         </div>
 
         <form onSubmit={handlePushText} className="flex-1 max-w-2xl flex items-center gap-2 bg-slate-50 p-1 rounded-xl border border-slate-200/80">
@@ -1226,8 +1405,8 @@ export default function TeachingDashboard() {
             <button type="button" onClick={() => setInputTarget('stage')} className={`px-3 py-1 rounded-md transition-all ${inputTarget === 'stage' ? 'bg-indigo-600 text-white font-black' : 'text-slate-500 hover:text-slate-900'}`}>STAGE</button>
             <button type="button" onClick={() => setInputTarget('linking')} className={`px-3 py-1 rounded-md transition-all ${inputTarget === 'linking' ? 'bg-amber-500 text-slate-950 font-black' : 'text-slate-500 hover:text-slate-900'}`}>LINKING</button>
           </div>
-          <input type="text" disabled={isSpawning || isMediaBayOpen} value={inputText} onChange={(e) => setInputText(e.target.value)} placeholder={`Type notes to push to ${inputTarget.toUpperCase()}...`} className="flex-1 bg-transparent border-none outline-none px-3 text-sm font-mono font-medium text-slate-900 placeholder:text-slate-400" />
-          <button type="submit" disabled={isSpawning || isMediaBayOpen} className="px-5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-mono text-xs font-bold rounded-lg transition-colors">FIRE ↵</button>
+          <input type="text" disabled={isSpawning || isMediaBayOpen || isClassworkCreatorOpen} value={inputText} onChange={(e) => setInputText(e.target.value)} placeholder={`Type notes to push to ${inputTarget.toUpperCase()}...`} className="flex-1 bg-transparent border-none outline-none px-3 text-sm font-mono font-medium text-slate-900 placeholder:text-slate-400" />
+          <button type="submit" disabled={isSpawning || isMediaBayOpen || isClassworkCreatorOpen} className="px-5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-mono text-xs font-bold rounded-lg transition-colors">FIRE ↵</button>
         </form>
 
         <div className="flex items-center gap-2 font-mono text-xs relative">

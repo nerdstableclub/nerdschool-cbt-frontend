@@ -4,6 +4,8 @@ import Auth from './Auth';
 import ExamInstructions from './ExamInstructions';
 import StudentHub from './StudentHub'; 
 import StudentDashboard from './StudentDashboard';
+import SynthesisLab from './SynthesisLab';
+import PyqEngine from './PyqEngine'; // <-- 🔥 NEW IMPORT
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -48,11 +50,9 @@ function App() {
   const [showPremiumModal, setShowPremiumModal] = useState(false); 
 
   // 🔥 THE NEW BOUNCER LOGIC
-  // Checks if the user has a specific plan in their ActivePlans array.
   const hasPlan = (planName) => {
     if (!currentUser || !currentUser.plans) return false;
     return currentUser.plans.some(p => p.toLowerCase() === planName.toLowerCase() || p.toLowerCase() === 'premium'); 
-    // Note: If they have 'Premium', we assume they get access to everything. You can adjust this if 'Premium' doesn't include 'Mocktest'.
   };
 
   useEffect(() => {
@@ -151,7 +151,6 @@ function App() {
       const res = await fetch(`${API_URL}/api/quick-practice`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        // We pass hasPlan('Premium') so the backend knows if it should serve premium questions
         body: JSON.stringify({ paperType, subject, chapter, isPremium: hasPlan('Mocktest') || hasPlan('Premium') })
       });
       const data = await res.json();
@@ -174,8 +173,6 @@ function App() {
     setCurrentTestId(testId);
     setIsExamPreview(isPreview);
     setIsPracticeMode(isPractice); 
-    setCurrentTestId(testId);
-    setIsExamPreview(isPreview);
     
     if (pastResponses) {
       setIsReviewMode(true);
@@ -393,14 +390,34 @@ function App() {
         onSelectPath={(path) => {
           if (path === 'cbt') setAppMode('dashboard');
           if (path === 'lms') setAppMode('lms');
+          if (path === 'pyq_engine') setAppMode('pyq_engine');
+          if (path === 'synthesis_lab') setAppMode('synthesis_lab');
         }} 
         onLogout={() => { setCurrentUser(null); setAppMode('auth'); }} 
       />
     );
   }
 
+  // 🔥 PYQ ENGINE ROUTE (with BackToCourse injected)
+  if (appMode === 'pyq_engine') {
+    return <PyqEngine user={currentUser} onBack={() => setAppMode('hub')} onBackToCourse={() => setAppMode('lms')} />;
+  }
+
+  // 🔥 SYNTHESIS LAB ROUTE (with BackToCourse injected)
+  if (appMode === 'synthesis_lab') {
+    return <SynthesisLab user={currentUser} onBack={() => setAppMode('hub')} onBackToCourse={() => setAppMode('lms')} />;
+  }
+
+  // 🔥 LMS ROUTE (with OpenPyq injected)
   if (appMode === 'lms') {
-    return <StudentDashboard user={currentUser} onBack={() => setAppMode('hub')} />;
+    return (
+      <StudentDashboard 
+        user={currentUser} 
+        onBack={() => setAppMode('hub')} 
+        onOpenLab={() => setAppMode('synthesis_lab')} 
+        onOpenPyq={() => setAppMode('pyq_engine')} 
+      />
+    );
   }
 
   if (appMode === 'admin') {
@@ -434,7 +451,6 @@ function App() {
             <h2 className="text-3xl font-black text-gray-900">{currentUser.name}</h2>
             <p className="text-gray-500 font-mono font-medium mt-1 mb-3">Roll No: {currentUser.rollNumber}</p>
             
-            {/* 🔥 NEW UI BADGES FOR PROFILE */}
             <div className="flex flex-wrap justify-center gap-2 mb-2">
               {currentUser.plans && currentUser.plans.map((plan, idx) => (
                 <span key={idx} className="bg-purple-100 text-purple-800 border border-purple-200 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm">
@@ -537,7 +553,6 @@ function App() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {publishedTests.map(test => {
-                // 🔥 NEW BOUNCER FOR PUBLISHED TESTS
                 const isLocked = test.isPremium && !hasPlan('Mocktest') && !hasPlan('Premium');
 
                 return (
@@ -623,8 +638,7 @@ function App() {
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {subjectGroup.chapters.map((ch, cIdx) => {
-                    const isFree = cIdx === 0; // Chapter 1 is always free
-                    // 🔥 NEW BOUNCER LOGIC
+                    const isFree = cIdx === 0; 
                     const isLocked = !isFree && !hasPlan('Mocktest') && !hasPlan('Premium');
 
                     return (
@@ -676,7 +690,6 @@ function App() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {subjectGroup.chapters.map((ch, cIdx) => {
                     const isFree = cIdx === 0;
-                    // 🔥 NEW BOUNCER LOGIC
                     const isLocked = !isFree && !hasPlan('Mocktest') && !hasPlan('Premium');
 
                     return (
