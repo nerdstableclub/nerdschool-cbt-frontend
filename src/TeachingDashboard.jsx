@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-// SMART PYQ SEARCH ENGINE
+// ==========================================
+// 1. SMART PYQ SEARCH ENGINE
+// ==========================================
 const PyqSearchEngine = ({ onSelect }) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
@@ -36,7 +38,7 @@ const PyqSearchEngine = ({ onSelect }) => {
         type="text" 
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search 1,000+ PYQs (e.g. 'Ondaatje', 'Derrida', '2018')..." 
+        placeholder="Search 1,000+ PYQs (e.g. 'Ondaatje', 'Derrida', '2018')...." 
         className="w-full p-2.5 bg-white border border-fuchsia-300 focus:border-fuchsia-600 rounded font-mono text-xs outline-none shadow-inner" 
       />
       {isSearching && <div className="absolute right-3 top-3 text-[10px] text-fuchsia-500 font-bold animate-pulse">SEARCHING...</div>}
@@ -68,7 +70,7 @@ const PyqSearchEngine = ({ onSelect }) => {
 };
 
 // ==========================================
-// 🔥 THE ELITE ACADEMIC WEBVIEW ENGINE
+// 2. THE ELITE ACADEMIC WEBVIEW ENGINE
 // ==========================================
 const getIframeDoc = (payload) => {
   if (!payload) return '';
@@ -89,7 +91,6 @@ const getIframeDoc = (payload) => {
       }
       * { box-sizing: border-box; }
       
-      /* ALIGN-ITEMS: FLEX-START ensures the top never gets cut off! */
       body { 
         margin: 0; padding: 2rem; min-height: 100vh; background: var(--bg-color);
         display: flex; justify-content: center; align-items: flex-start;
@@ -144,7 +145,7 @@ const getIframeDoc = (payload) => {
 };
 
 // ==========================================
-// 2. PYQ INTERACTIVE BLOCK
+// 3. PYQ INTERACTIVE BLOCK
 // ==========================================
 const PyqInteractiveBlock = ({ questionTarget }) => {
   const [qData, setQData] = useState(null);
@@ -216,7 +217,55 @@ const PyqInteractiveBlock = ({ questionTarget }) => {
   );
 };
 
+// ==========================================
+// 4. CUSTOM MCQ BLOCK
+// ==========================================
+const CustomMcqBlock = ({ mcqPayload }) => {
+  const [selectedOpt, setSelectedOpt] = useState(null);
+  const [showExplanation, setShowExplanation] = useState(false);
+  let mcqData = {};
+  try { mcqData = JSON.parse(mcqPayload || '{}'); } catch (e) { return <div className="p-10 text-center text-sm font-mono text-slate-500">Failed to load MCQ data.</div>; }
 
+  const options = ['A', 'B', 'C', 'D'];
+  const correctAns = mcqData.correct;
+
+  return (
+    <div className="flex flex-col w-full text-left">
+      <div className="flex justify-between items-start mb-6 border-b border-slate-200 pb-4">
+        <span className="text-xs font-black tracking-widest uppercase bg-amber-100 text-amber-800 px-3 py-1 rounded border border-amber-200 shadow-sm">CONCEPT CHECK</span>
+      </div>
+      <p className="text-slate-800 text-xl md:text-2xl font-bold leading-relaxed mb-8 whitespace-pre-wrap">{mcqData.question}</p>
+      
+      <div className="space-y-4 mb-8">
+        {options.map((opt) => {
+          if (!mcqData[`opt${opt}`]) return null;
+          let btnStyle = "bg-slate-50 border-slate-200 text-slate-700 hover:border-amber-400 hover:bg-white";
+          if (selectedOpt !== null) {
+            if (opt === correctAns) btnStyle = "bg-emerald-50 border-emerald-400 text-emerald-800 shadow-sm"; 
+            else if (opt === selectedOpt) btnStyle = "bg-rose-50 border-rose-400 text-rose-800"; 
+            else btnStyle = "bg-slate-100 border-slate-200 text-slate-400 opacity-50"; 
+          }
+          return (
+            <button key={opt} onClick={() => { if(selectedOpt===null){ setSelectedOpt(opt); setShowExplanation(true); } }} disabled={selectedOpt !== null} className={`w-full text-left px-6 py-4 rounded-xl border-2 text-base md:text-lg font-bold transition-all ${btnStyle} flex gap-4 items-center`}>
+              <span className="font-black opacity-40 shrink-0">({opt})</span><span>{mcqData[`opt${opt}`]}</span>
+            </button>
+          );
+        })}
+      </div>
+      {showExplanation && mcqData.explanation && (
+        <div className="p-6 bg-indigo-50 border border-indigo-200 rounded-xl animate-fade-in shadow-sm">
+          <span className="text-xs font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2 mb-2"><span className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse"></span> Teacher's Note</span>
+          <p className="text-base md:text-lg text-indigo-900 leading-relaxed font-medium">{mcqData.explanation}</p>
+        </div>
+      )}
+    </div>
+  );
+};
+
+
+// ==========================================
+// 5. MASTER TEACHING DASHBOARD
+// ==========================================
 export default function TeachingDashboard() {
   const [lessonData, setLessonData] = useState([]);
   const [activeIdx, setActiveIdx] = useState(0);
@@ -234,6 +283,8 @@ export default function TeachingDashboard() {
   const [showLMS, setShowLMS] = useState(true);
   const [showSynapse, setShowSynapse] = useState(true);
   const [chromaMode, setChromaMode] = useState(false);
+  const [splitViewMode, setSplitViewMode] = useState(false); 
+  const [isEditingCode, setIsEditingCode] = useState(false); 
   
   // Pentab Ink State
   const [isDrawMode, setIsDrawMode] = useState(false);
@@ -242,8 +293,9 @@ export default function TeachingDashboard() {
   const isDrawing = useRef(false);
   const currentPath = useRef([]);
 
-  // Overlays & Sync State
+  // Overlays, Podcast & Sync State
   const [activeOverlay, setActiveOverlay] = useState(null);
+  const [activePodcast, setActivePodcast] = useState(null); // 🔥 NEW PODCAST STATE
   const [overlayZoom, setOverlayZoom] = useState(1); 
   const [revealedCount, setRevealedCount] = useState(0);
   const [saveStatus, setSaveStatus] = useState('idle'); 
@@ -259,7 +311,7 @@ export default function TeachingDashboard() {
     video_timestamp: ''
   });
   
-  // 🔥 CLASSWORK CREATOR STATE & MANAGER
+  // CLASSWORK CREATOR STATE & MANAGER
   const [isClassworkCreatorOpen, setIsClassworkCreatorOpen] = useState(false);
   const [classworkViewMode, setClassworkViewMode] = useState('manage'); 
   const [classworkList, setClassworkList] = useState([]);
@@ -271,8 +323,8 @@ export default function TeachingDashboard() {
     mission_directive: 'Synthesize the concept below.',
     keywords: '',
     mnemonic_code: '',
-    magic_paragraph: '', // This remains your HTML Sandbox
-    extractor_text: '',  // <-- 🔥 THIS IS YOUR NEW CONCEPT EXTRACTOR TEXTBOX
+    magic_paragraph: '',
+    extractor_text: '',  
     expansion: ''
   });
 
@@ -291,11 +343,6 @@ export default function TeachingDashboard() {
     { value: 'Premium', label: '🔵 Premium' },
     { value: 'JRF 200 Advance', label: '🟣 JRF 200 Advance' }
   ];
-
-  const videoTextArmor = chromaMode ? {
-    color: '#FFFFFF',
-    textShadow: '2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 0px 4px 10px rgba(0,0,0,0.9)'
-  } : {};
 
   const hydrateCanvas = (stepObj) => {
     if (!stepObj || !stepObj.stage_payload) return [];
@@ -367,6 +414,7 @@ export default function TeachingDashboard() {
     setLiveLinkingCode(nextStep.linking_code || 'NONE');
     setRevealedCount(0);
     setActiveOverlay(null);
+    setActivePodcast(null); // Clear podcast on slide change
     setOverlayZoom(1); 
     setIsSpawning(false);
     setIsMediaBayOpen(false);
@@ -431,41 +479,6 @@ export default function TeachingDashboard() {
     } catch { setSaveStatus('error'); }
   };
 
-  const handleQuickExtend = async () => {
-    const currentStep = lessonData[activeIdx] || {};
-    if (!currentStep.paper_id) return;
-    setSaveStatus('saving');
-    try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-      const payload = {
-        paper_id: currentStep.paper_id,
-        chapter_title: currentStep.chapter_title,
-        index_title: currentStep.index_title.endsWith('(Cont.)') ? currentStep.index_title : currentStep.index_title + ' (Cont.)',
-        required_plan: currentStep.Required_Plan || currentStep.required_plan || 'Free',
-        master_video: currentStep.master_video || '',
-        video_timestamp: currentStep.video_timestamp || ''
-      };
-      const res = await fetch(`${API_URL}/api/create-slide`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      if (data.success) {
-        const bankRes = await fetch(`${API_URL}/api/lesson-data`);
-        const bankData = await bankRes.json();
-        if (bankData.success && bankData.data.length > 0) {
-          setLessonData(bankData.data);
-          setActiveIdx(bankData.data.length - 1);
-          setStageList([]); 
-          setSynapseNotes([]);
-          setLiveLinkingCode('NONE');
-          setRevealedCount(0);
-          setStrokes([]);
-          setSaveStatus('idle');
-        }
-      }
-    } catch { setSaveStatus('error'); }
-  };
-
   const handleDeleteSlide = async (step_id) => {
     if (!window.confirm(`WARNING: Permanently delete Slide [${step_id}] from the cloud?`)) return;
     try {
@@ -516,7 +529,6 @@ export default function TeachingDashboard() {
     } catch { setSaveStatus('error'); }
   };
 
-  // 🔥 CLASSWORK MANAGER CRUD FUNCTIONS
   const handleSaveClasswork = async (e) => {
     e.preventDefault();
     if (!classworkForm.title) return alert("Assignment Title is required!");
@@ -618,6 +630,7 @@ export default function TeachingDashboard() {
     const updatedAssets = currentAssets.filter(a => a.id !== idToRemove);
     commitToCloud(updatedAssets);
     if (activeOverlay === idToRemove) setActiveOverlay(null);
+    if (activePodcast === idToRemove) setActivePodcast(null);
   };
 
   const groupedLMS = lessonData.reduce((acc, slide, idx) => {
@@ -630,7 +643,7 @@ export default function TeachingDashboard() {
   const toggleLMS = (key) => setCollapsedLMS(p => ({ ...p, [key]: !p[key] }));
 
   const getAssetIcon = (type) => {
-    return type === 'svg' ? '🧬' : type === 'youtube' ? '▶️' : type === 'question' ? '❓' : type === 'custom_mcq' ? '📝' : type === 'code' ? '💻' : type === 'mnemonic' ? '🧠' : '🖼️';
+    return type === 'podcast' ? '🎧' : type === 'svg' ? '🧬' : type === 'youtube' ? '▶️' : type === 'question' ? '❓' : type === 'custom_mcq' ? '📝' : type === 'code' ? '💻' : type === 'mnemonic' ? '🧠' : '🖼️';
   };
 
   useEffect(() => {
@@ -646,10 +659,11 @@ export default function TeachingDashboard() {
       if (e.key === 'F8') { e.preventDefault(); setShowSynapse(prev => !prev); }
       if (e.key === 'ArrowRight') syncSlideChange(activeIdx + 1);
       if (e.key === 'ArrowLeft') syncSlideChange(activeIdx - 1);
+      
       if (e.key === 'Escape') { 
         setActiveOverlay(null); 
+        // Notice we do NOT clear activePodcast here, so it keeps playing!
         setOverlayZoom(1);
-        setStageList([]); 
         setIsSpawning(false); 
         setIsMediaBayOpen(false); 
         setIsClassworkCreatorOpen(false); 
@@ -688,7 +702,7 @@ export default function TeachingDashboard() {
       }
       ctx.stroke();
     });
-  }, [strokes, activeIdx, showLMS, showSynapse, chromaMode]);
+  }, [strokes, activeIdx, showLMS, showSynapse, chromaMode, splitViewMode, isEditingCode]);
 
   const handlePointerDown = (e) => {
     if (!isDrawMode) return;
@@ -732,6 +746,19 @@ export default function TeachingDashboard() {
     currentPath.current = [];
   };
 
+  const handlePushText = (e) => {
+    e.preventDefault();
+    if (!inputText.trim()) return;
+    if (inputTarget === 'stage') setStageList(prev => [...prev, inputText]);
+    else setSynapseNotes(prev => [...prev, inputText]);
+    setInputText(''); 
+  };
+
+  const handleAutoResize = (e) => {
+    e.target.style.height = 'auto';
+    e.target.style.height = e.target.scrollHeight + 'px';
+  };
+
   if (loading) return <div className="h-screen w-full bg-slate-50 text-indigo-600 flex items-center justify-center font-mono font-bold">BOOTING ELITE LIGHT COCKPIT...</div>;
   
   if (lessonData.length === 0) return (
@@ -773,38 +800,32 @@ export default function TeachingDashboard() {
     </div>
   );
 
-  const handlePushText = (e) => {
-    e.preventDefault();
-    if (!inputText.trim()) return;
-    if (inputTarget === 'stage') setStageList(prev => [...prev, inputText]);
-    else setSynapseNotes(prev => [...prev, inputText]);
-    setInputText(''); 
-  };
-
-  const handleAutoResize = (e) => {
-    e.target.style.height = 'auto';
-    e.target.style.height = e.target.scrollHeight + 'px';
-  };
-
   return (
     <div className="h-screen w-full bg-white text-slate-900 flex flex-col overflow-hidden font-sans select-none relative">
       
       <div className="flex-1 flex overflow-hidden relative z-10">
 
-        {/* ZONE 1: LMS NAVIGATOR */}
+        {/* ZONE 1: LMS NAVIGATOR (HIDES ON FULLSCREEN) */}
         <aside className={`bg-slate-50 border-r border-slate-200 flex flex-col z-20 transition-all duration-300 shrink-0 ${
-          !showLMS ? 'w-0 opacity-0 overflow-hidden border-none' : 'w-72 opacity-100'
+          (!showLMS || splitViewMode) ? 'w-0 opacity-0 overflow-hidden border-none' : 'w-72 opacity-100'
         }`}>
-          <div className="p-3 bg-slate-100/80 border-b border-slate-200 font-mono text-xs font-bold text-slate-700 flex justify-between items-center">
-            <span>LMS INDEX</span>
-            <span className="text-[10px] text-slate-400 font-normal">[{activeIdx + 1}/{lessonData.length}]</span>
+          <div className="p-3 bg-slate-100/80 border-b border-slate-200 font-mono text-xs font-bold text-slate-700 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span>LMS INDEX</span>
+              <span className="text-[10px] text-slate-400 font-normal">[{activeIdx + 1}/{lessonData.length}]</span>
+            </div>
+            <button 
+              onClick={() => setSplitViewMode(true)} 
+              className="px-2 py-1 text-[9px] font-black rounded border transition-colors bg-white hover:bg-slate-200 text-slate-600 border-slate-300 shadow-sm"
+              title="Enter Fullscreen Focus Mode"
+            >
+              ◫ FULLSCREEN
+            </button>
           </div>
 
           <div className="p-2 border-b border-slate-200 bg-white grid grid-cols-3 gap-1.5">
             <button onClick={() => { setIsSpawning(true); setIsMediaBayOpen(false); setIsClassworkCreatorOpen(false); }} className="py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/80 rounded text-[10px] font-bold flex items-center justify-center gap-1 transition-all shadow-sm"><span>⚡</span> SLIDE</button>
             <button onClick={() => { setIsMediaBayOpen(true); setIsSpawning(false); setIsClassworkCreatorOpen(false); }} className="py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200/80 rounded text-[10px] font-bold flex items-center justify-center gap-1 transition-all shadow-sm"><span>⚙️</span> MEDIA</button>
-            
-            {/* 🔥 THE TASK BUTTON */}
             <button onClick={() => { setIsClassworkCreatorOpen(true); setIsSpawning(false); setIsMediaBayOpen(false); setClassworkViewMode('manage'); }} className="py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/80 rounded text-[10px] font-bold flex items-center justify-center gap-1 transition-all shadow-sm"><span>✍️</span> TASK</button>
           </div>
 
@@ -878,520 +899,506 @@ export default function TeachingDashboard() {
           </div>
         </aside>
 
-        {/* ZONE 2: CENTER STAGE */}
-        <main className={`flex-1 flex items-center justify-center relative overflow-hidden transition-colors duration-300 ${
-          chromaMode ? 'bg-[#00FF00] p-0' : 'bg-slate-100/60 p-4 md:p-6'
-        }`}>
+        {/* ZONE 2: CENTER STAGE (THE WEBVIEW STUDIO) */}
+        <main className={`flex-1 flex flex-col relative overflow-hidden transition-all duration-300 ${
+          chromaMode ? 'bg-[#00FF00]' : 'bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-slate-950'
+        } ${splitViewMode ? 'p-0' : 'p-4 md:p-6'}`}>
           
-          <div className={`w-full relative flex flex-col justify-between overflow-hidden transition-all duration-300 aspect-video ${
-            chromaMode ? 'bg-[#00FF00] max-w-[177.78vh] rounded-none border-none shadow-none p-8 md:p-10' :
-            (!showLMS && !showSynapse) ? 'bg-white max-w-[177.78vh] rounded-none border-none shadow-none p-8 md:p-10' : 
-            'bg-white max-w-5xl border border-slate-200/80 shadow-[0_20px_50px_rgba(0,0,0,0.05)] rounded-2xl p-8 md:p-10'
-          }`}>
+          <div className="w-full h-full flex flex-col relative">
 
-            {/* FIXED TOUCH-LOCK CANVAS */}
-            {(!isSpawning && !isMediaBayOpen && !isClassworkCreatorOpen) && (
-              <canvas 
-                ref={canvasRef}
-                width={1920}
-                height={1080}
-                className={`absolute inset-0 w-full h-full z-[60] ${isDrawMode ? 'touch-none' : ''}`}
-                style={{ pointerEvents: isDrawMode ? 'auto' : 'none' }}
-                onPointerDown={handlePointerDown}
-                onPointerMove={handlePointerMove}
-                onPointerUp={handlePointerUp}
-                onPointerLeave={handlePointerUp}
-              />
-            )}
-            
-            <div className={`flex items-center justify-between pb-4 z-50 select-none relative px-2 -mx-2 rounded-lg transition-colors ${chromaMode ? 'bg-transparent border-none' : 'bg-white/80 backdrop-blur-sm border-b border-slate-100'}`}>
-              <div className="flex items-center">
-                <span className={`text-xs font-mono px-2 py-0.5 font-bold rounded mr-2.5 ${chromaMode ? 'bg-transparent border border-slate-800 text-slate-800' : 'bg-slate-100 text-slate-700 border border-slate-200'}`}>{currentStep.paper_id}</span>
-                <span className={`text-sm font-bold tracking-wide uppercase ${chromaMode ? 'text-slate-900 drop-shadow-md' : 'text-slate-500'}`} style={videoTextArmor}>{currentStep.chapter_title}</span>
-                
-                {currentStep.Required_Plan && currentStep.Required_Plan.toLowerCase() !== 'free' && (
-                  <span className="ml-3 text-[9px] font-black uppercase tracking-widest bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full border border-amber-200 shadow-sm flex items-center gap-1">
-                    <span>🔒</span> {currentStep.Required_Plan}
-                  </span>
-                )}
-                
-                {currentStep.master_video && (
-                  <span className="ml-2 text-[9px] font-black uppercase tracking-widest bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full border border-rose-200 shadow-sm flex items-center gap-1">
-                    <span>▶️</span> {currentStep.video_timestamp || '0m0s'}
-                  </span>
-                )}
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <button onClick={() => commitToCloud()} disabled={saveStatus === 'saving'} className={`font-mono text-[10px] px-3 py-1 rounded font-black transition-all border flex items-center gap-1.5 shadow-sm ${chromaMode ? 'bg-white text-slate-900 border-transparent' : saveStatus === 'saved' ? 'bg-emerald-600 border-emerald-600 text-white' : saveStatus === 'saving' ? 'bg-amber-100 border-amber-300 text-amber-800 cursor-wait' : saveStatus === 'error' ? 'bg-rose-600 text-white animate-bounce' : 'bg-white hover:bg-slate-50 text-slate-800 border-slate-300'}`}>
-                  <span>☁️</span><span>{saveStatus === 'saving' ? 'SYNCING...' : saveStatus === 'saved' ? 'SAVED!' : 'COMMIT TO CLOUD'}</span>
-                </button>
-                <span className={`font-mono text-xs font-black tracking-widest px-2.5 py-1 rounded border ml-1 ${chromaMode ? 'bg-transparent text-indigo-900 border-indigo-900' : 'text-indigo-600 bg-indigo-50 border-indigo-100'}`}>STEP {currentStep.step_id}</span>
-              </div>
-            </div>
+            {/* FORMS OR STUDIO */}
+            {isSpawning ? (
+              <div className="flex-1 flex flex-col items-center justify-center w-full max-w-lg mx-auto py-2 relative z-50">
+                <h2 className="text-xl font-black text-white mb-6 tracking-tight uppercase flex items-center gap-2"><span className="text-indigo-400">⚡</span> Spawn Sequential Slide</h2>
+                <form onSubmit={handleSpawnSlide} className="w-full space-y-4 text-left bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-2xl">
+                  <div>
+                    <label className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">Module Category (Select or Type New)</label>
+                    <input type="text" list="category-options" required value={spawnForm.paper_id} onChange={e => setSpawnForm({...spawnForm, paper_id: e.target.value})} className="w-full mt-1 p-3 bg-slate-900 border border-slate-600 rounded-lg font-bold text-sm text-white outline-none focus:border-indigo-500" />
+                  </div>
+                  <div><label className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">Module / Chapter Name</label><input type="text" required placeholder="e.g. Ch 3: Literary Theory" value={spawnForm.chapter_title} onChange={e => setSpawnForm({...spawnForm, chapter_title: e.target.value})} className="w-full mt-1 p-3 bg-slate-900 border border-slate-600 rounded-lg font-bold text-sm text-white outline-none focus:border-indigo-500" /></div>
+                  <div><label className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">Slide Heading (Topic Title)</label><input type="text" required placeholder="e.g. Derrida & Panopticism" value={spawnForm.index_title} onChange={e => setSpawnForm({...spawnForm, index_title: e.target.value})} className="w-full mt-1 p-3 bg-slate-900 border border-slate-600 rounded-lg font-bold text-sm text-white outline-none focus:border-indigo-500" /></div>
+                  
+                  <div>
+                    <label className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">Required Plan (Gatekeeper)</label>
+                    <select value={spawnForm.required_plan} onChange={e => setSpawnForm({...spawnForm, required_plan: e.target.value})} className="w-full mt-1 p-3 bg-slate-900 border border-slate-600 rounded-lg font-bold text-sm text-white outline-none focus:border-indigo-500">
+                      {ACCESS_PLANS.map(plan => <option key={plan.value} value={plan.value}>{plan.label}</option>)}
+                    </select>
+                  </div>
 
-            <div className={`flex-1 my-6 flex flex-col items-center justify-start text-center relative overflow-y-auto pr-2 custom-scrollbar ${isDrawMode ? 'select-none' : ''}`}>
-              
-              {isSpawning ? (
-                <div className="flex-1 flex flex-col items-center justify-center w-full max-w-md mx-auto py-4 relative z-50">
-                  <h2 className="text-lg font-black text-slate-900 mb-4 tracking-tight uppercase flex items-center gap-2"><span className="text-indigo-600">⚡</span> Spawn Sequential Slide</h2>
-                  <form onSubmit={handleSpawnSlide} className="w-full space-y-3.5 text-left bg-slate-50 p-6 rounded-2xl border border-slate-200 shadow-sm">
-                    <div>
-                      <label className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">Module Category (Select or Type New)</label>
-                      <input type="text" list="category-options" required value={spawnForm.paper_id} onChange={e => setSpawnForm({...spawnForm, paper_id: e.target.value})} className="w-full mt-1 p-2.5 bg-white border border-slate-300 rounded-lg font-bold text-sm text-slate-800 outline-none focus:border-indigo-600" />
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="col-span-2">
+                      <label className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">YouTube Master VOD</label>
+                      <input type="text" placeholder="Paste YouTube Link" value={spawnForm.master_video} onChange={e => setSpawnForm({...spawnForm, master_video: e.target.value})} className="w-full mt-1 p-3 bg-slate-900 border border-slate-600 rounded-lg font-mono text-xs text-white outline-none focus:border-indigo-500" />
                     </div>
-                    <div><label className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">Module / Chapter Name</label><input type="text" required placeholder="e.g. Ch 3: Literary Theory" value={spawnForm.chapter_title} onChange={e => setSpawnForm({...spawnForm, chapter_title: e.target.value})} className="w-full mt-1 p-2.5 bg-white border border-slate-300 rounded-lg font-bold text-sm text-slate-800 outline-none focus:border-indigo-600" /></div>
-                    <div><label className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">Slide Heading (Topic Title)</label><input type="text" required placeholder="e.g. Derrida & Panopticism" value={spawnForm.index_title} onChange={e => setSpawnForm({...spawnForm, index_title: e.target.value})} className="w-full mt-1 p-2.5 bg-white border border-slate-300 rounded-lg font-bold text-sm text-slate-800 outline-none focus:border-indigo-600" /></div>
-                    
                     <div>
-                      <label className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">Required Plan (Gatekeeper)</label>
-                      <select value={spawnForm.required_plan} onChange={e => setSpawnForm({...spawnForm, required_plan: e.target.value})} className="w-full mt-1 p-2.5 bg-white border border-slate-300 rounded-lg font-bold text-sm text-slate-800 outline-none focus:border-indigo-600">
-                        {ACCESS_PLANS.map(plan => <option key={plan.value} value={plan.value}>{plan.label}</option>)}
-                      </select>
+                      <label className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">Timestamp</label>
+                      <input type="text" placeholder="1h2m3s" value={spawnForm.video_timestamp} onChange={e => setSpawnForm({...spawnForm, video_timestamp: e.target.value})} className="w-full mt-1 p-3 bg-slate-900 border border-slate-600 rounded-lg font-mono font-bold text-sm text-indigo-400 outline-none focus:border-indigo-500 text-center" />
                     </div>
+                  </div>
 
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="col-span-2">
-                        <label className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">YouTube Master VOD</label>
-                        <input type="text" placeholder="Paste YouTube Link" value={spawnForm.master_video} onChange={e => setSpawnForm({...spawnForm, master_video: e.target.value})} className="w-full mt-1 p-2.5 bg-white border border-slate-300 rounded-lg font-mono text-xs text-slate-800 outline-none focus:border-indigo-600" />
+                  <div className="flex gap-3 pt-4"><button type="button" onClick={() => setIsSpawning(false)} className="flex-1 py-3 bg-slate-700 hover:bg-slate-600 text-white font-bold text-xs rounded-lg border border-slate-600">CANCEL</button><button type="submit" disabled={saveStatus === 'saving'} className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-lg shadow-md">{saveStatus === 'saving' ? 'SPAWNING...' : '🚀 COMMIT SLIDE'}</button></div>
+                </form>
+              </div>
+
+            ) : isMediaBayOpen ? (
+              <div className="flex-1 flex flex-col items-center justify-start w-full max-w-3xl mx-auto py-2 h-full overflow-y-auto custom-scrollbar relative z-50 text-left bg-slate-900 p-8 rounded-2xl border border-slate-800 shadow-2xl">
+                <h2 className="text-xl font-black text-white mb-6 tracking-tight uppercase flex items-center gap-2"><span className="text-amber-500">⚙️</span> Director's Bay: Assets</h2>
+                
+                <div className="w-full mb-8">
+                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">1. Queued Media & Live Question Assets</h3>
+                  <div className="w-full flex flex-col gap-3 mb-4">
+                    {currentAssets.map(asset => (
+                      <div key={asset.id} className="bg-slate-800 border border-slate-700 p-3 rounded-xl shadow-sm flex items-center justify-between">
+                        <div className="flex items-center gap-3 overflow-hidden">
+                          <span className="text-2xl">
+                            {getAssetIcon(asset.type)}
+                          </span>
+                          <span className="font-bold text-slate-200 text-sm truncate">{asset.title}</span>
+                        </div>
+                        <button onClick={() => handleRemoveAsset(asset.id)} className="text-rose-400 hover:bg-slate-700 px-3 py-1.5 rounded text-xs font-bold border border-rose-500/30">Delete</button>
+                      </div>
+                    ))}
+                    {currentAssets.length === 0 && <div className="w-full text-center p-6 bg-slate-800 border border-dashed border-slate-700 rounded-xl text-slate-500 font-mono text-xs">No media or question assets queued yet.</div>}
+                  </div>
+
+                  <div className="w-full bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-sm text-left overflow-visible relative">
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <label className="text-[10px] font-mono font-bold text-slate-400 uppercase">Button Label</label>
+                        <input type="text" placeholder="e.g. Concept Check" value={newAsset.title} onChange={e => setNewAsset(prev => ({...prev, title: e.target.value}))} className="w-full mt-1 p-3 bg-slate-900 border border-slate-600 text-white rounded-lg font-bold text-xs outline-none focus:border-indigo-500" />
                       </div>
                       <div>
-                        <label className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">Timestamp</label>
-                        <input type="text" placeholder="1h2m3s" value={spawnForm.video_timestamp} onChange={e => setSpawnForm({...spawnForm, video_timestamp: e.target.value})} className="w-full mt-1 p-2.5 bg-white border border-slate-300 rounded-lg font-mono font-bold text-sm text-indigo-700 outline-none focus:border-indigo-600 text-center" />
+                        <label className="text-[10px] font-mono font-bold text-slate-400 uppercase">Asset Type</label>
+                        <select value={newAsset.type} onChange={e => setNewAsset(prev => ({...prev, type: e.target.value, payload: ''}))} className="w-full mt-1 p-3 bg-slate-900 border border-slate-600 text-white rounded-lg font-bold text-xs outline-none focus:border-indigo-500">
+                          <option value="image">🖼️ Image (.jpg/.png URL)</option>
+                          <option value="svg">🧬 Raw HTML / SVG Code</option>
+                          <option value="youtube">▶️ YouTube Video URL</option>
+                          <option value="podcast">🎧 Audio Podcast (YouTube URL)</option>
+                          <option value="mnemonic">🧠 Memory Hack / Mnemonic</option>
+                          <option value="code">💻 Syntax / Code Block</option>
+                          <option value="custom_mcq">📝 Custom MCQ Test</option>
+                          <option value="question">❓ Live PYQ Search</option>
+                        </select>
                       </div>
                     </div>
+                    
+                    {newAsset.type === 'custom_mcq' ? (
+                      <div className="mb-4 space-y-3 bg-slate-900 p-5 rounded-xl border border-slate-700 shadow-sm">
+                        <label className="text-[10px] font-mono font-bold text-indigo-400 uppercase">MCQ Builder</label>
+                        <textarea placeholder="Type your Question here..." value={mcqForm.question} onChange={e => setMcqForm({...mcqForm, question: e.target.value})} rows="2" className="w-full p-3 bg-slate-800 text-white border border-slate-700 rounded-lg font-semibold text-sm outline-none focus:border-indigo-500" />
+                        
+                        <div className="grid grid-cols-2 gap-3 mt-2">
+                          <input type="text" placeholder="Option A" value={mcqForm.optA} onChange={e => setMcqForm({...mcqForm, optA: e.target.value})} className="w-full p-3 bg-slate-800 text-white border border-slate-700 rounded-lg text-xs font-semibold outline-none focus:border-indigo-500" />
+                          <input type="text" placeholder="Option B" value={mcqForm.optB} onChange={e => setMcqForm({...mcqForm, optB: e.target.value})} className="w-full p-3 bg-slate-800 text-white border border-slate-700 rounded-lg text-xs font-semibold outline-none focus:border-indigo-500" />
+                          <input type="text" placeholder="Option C" value={mcqForm.optC} onChange={e => setMcqForm({...mcqForm, optC: e.target.value})} className="w-full p-3 bg-slate-800 text-white border border-slate-700 rounded-lg text-xs font-semibold outline-none focus:border-indigo-500" />
+                          <input type="text" placeholder="Option D" value={mcqForm.optD} onChange={e => setMcqForm({...mcqForm, optD: e.target.value})} className="w-full p-3 bg-slate-800 text-white border border-slate-700 rounded-lg text-xs font-semibold outline-none focus:border-indigo-500" />
+                        </div>
 
-                    <div className="flex gap-2 pt-3"><button type="button" onClick={() => setIsSpawning(false)} className="flex-1 py-2.5 bg-white hover:bg-slate-100 text-slate-600 font-bold text-xs rounded-lg border border-slate-300">CANCEL</button><button type="submit" disabled={saveStatus === 'saving'} className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-lg shadow-md">{saveStatus === 'saving' ? 'SPAWNING...' : '🚀 COMMIT SLIDE'}</button></div>
-                  </form>
-                </div>
-
-              ) : isMediaBayOpen ? (
-                <div className="flex-1 flex flex-col items-center justify-start w-full max-w-3xl mx-auto py-2 h-full overflow-y-auto custom-scrollbar pr-2 relative z-50">
-                  <h2 className="text-xl font-black text-slate-900 mb-6 tracking-tight uppercase flex items-center gap-2"><span className="text-amber-500">⚙️</span> Director's Bay: Assets & Pre-Points</h2>
-                  
-                  <div className="w-full mb-8">
-                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3 text-left">1. Queued Media & Live Question Assets</h3>
-                    <div className="w-full grid grid-cols-2 gap-3 mb-4">
-                      {currentAssets.map(asset => (
-                        <div key={asset.id} className="bg-white border border-slate-200 p-3 rounded-xl shadow-sm flex items-center justify-between">
-                          <div className="flex items-center gap-2 overflow-hidden">
-                            <span className="text-xl">
-                              {getAssetIcon(asset.type)}
-                            </span>
-                            <span className="font-bold text-slate-700 text-sm truncate">{asset.title}</span>
+                        <div className="grid grid-cols-1 gap-3 mt-3 pt-3 border-t border-slate-700">
+                          <div>
+                            <label className="text-[10px] font-mono font-bold text-slate-400 uppercase">Correct Answer</label>
+                            <select value={mcqForm.correct} onChange={e => setMcqForm({...mcqForm, correct: e.target.value})} className="w-full mt-1 p-3 bg-emerald-900/30 border border-emerald-500/50 text-emerald-400 rounded-lg font-bold text-xs outline-none focus:border-emerald-500">
+                              <option value="A">Option A</option>
+                              <option value="B">Option B</option>
+                              <option value="C">Option C</option>
+                              <option value="D">Option D</option>
+                            </select>
                           </div>
-                          <button onClick={() => handleRemoveAsset(asset.id)} className="text-rose-500 hover:bg-rose-50 px-2 py-1 rounded text-xs font-bold border border-rose-200">Delete</button>
-                        </div>
-                      ))}
-                      {currentAssets.length === 0 && <div className="col-span-2 text-center p-3 bg-slate-50 border border-dashed border-slate-300 rounded-xl text-slate-400 font-mono text-xs">No media or question assets queued yet.</div>}
-                    </div>
-
-                    <div className="w-full bg-slate-50 p-5 rounded-2xl border border-slate-200 shadow-sm text-left overflow-visible relative">
-                      <div className="grid grid-cols-2 gap-3 mb-3">
-                        <div>
-                          <label className="text-[9px] font-mono font-bold text-slate-400 uppercase">Button Label</label>
-                          <input 
-                            type="text" 
-                            placeholder="e.g. Concept Check" 
-                            value={newAsset.title} 
-                            onChange={e => setNewAsset(prev => ({...prev, title: e.target.value}))} 
-                            className="w-full mt-1 p-2 bg-white border border-slate-300 rounded font-bold text-xs outline-none focus:border-indigo-600" 
-                          />
-                        </div>
-                        <div>
-                          <label className="text-[9px] font-mono font-bold text-slate-400 uppercase">Asset Type</label>
-                          <select 
-                            value={newAsset.type} 
-                            onChange={e => setNewAsset(prev => ({...prev, type: e.target.value, payload: ''}))} 
-                            className="w-full mt-1 p-2 bg-white border border-slate-300 rounded font-bold text-xs outline-none focus:border-indigo-600"
-                          >
-                            <option value="image">🖼️ Image (.jpg/.png URL)</option>
-                            <option value="svg">🧬 Raw HTML / SVG Code</option>
-                            <option value="youtube">▶️ YouTube Video URL</option>
-                            <option value="mnemonic">🧠 Memory Hack / Mnemonic</option>
-                            <option value="code">💻 Syntax / Code Block</option>
-                            <option value="custom_mcq">📝 Custom MCQ Test</option>
-                            <option value="question">❓ Live PYQ Search</option>
-                          </select>
+                          <div className="col-span-1">
+                            <label className="text-[10px] font-mono font-bold text-slate-400 uppercase">Explanation (Optional)</label>
+                            <input type="text" placeholder="Why is this correct?" value={mcqForm.explanation} onChange={e => setMcqForm({...mcqForm, explanation: e.target.value})} className="w-full mt-1 p-3 bg-slate-800 text-white border border-slate-700 rounded-lg font-mono text-xs outline-none focus:border-indigo-500" />
+                          </div>
                         </div>
                       </div>
-                      
-                      {newAsset.type === 'custom_mcq' ? (
-                        <div className="mb-4 space-y-2 bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
-                          <label className="text-[10px] font-mono font-bold text-indigo-600 uppercase">MCQ Builder</label>
-                          <textarea placeholder="Type your Question here..." value={mcqForm.question} onChange={e => setMcqForm({...mcqForm, question: e.target.value})} rows="2" className="w-full p-2 bg-slate-50 border border-slate-300 rounded font-semibold text-sm outline-none focus:border-indigo-600" />
-                          
-                          <div className="grid grid-cols-2 gap-2 mt-2">
-                            <input type="text" placeholder="Option A" value={mcqForm.optA} onChange={e => setMcqForm({...mcqForm, optA: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-300 rounded text-xs font-semibold outline-none focus:border-indigo-600" />
-                            <input type="text" placeholder="Option B" value={mcqForm.optB} onChange={e => setMcqForm({...mcqForm, optB: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-300 rounded text-xs font-semibold outline-none focus:border-indigo-600" />
-                            <input type="text" placeholder="Option C" value={mcqForm.optC} onChange={e => setMcqForm({...mcqForm, optC: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-300 rounded text-xs font-semibold outline-none focus:border-indigo-600" />
-                            <input type="text" placeholder="Option D" value={mcqForm.optD} onChange={e => setMcqForm({...mcqForm, optD: e.target.value})} className="w-full p-2 bg-slate-50 border border-slate-300 rounded text-xs font-semibold outline-none focus:border-indigo-600" />
-                          </div>
 
-                          <div className="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-slate-100">
-                            <div>
-                              <label className="text-[9px] font-mono font-bold text-slate-400 uppercase">Correct Answer</label>
-                              <select value={mcqForm.correct} onChange={e => setMcqForm({...mcqForm, correct: e.target.value})} className="w-full mt-1 p-2 bg-emerald-50 border border-emerald-300 text-emerald-800 rounded font-bold text-xs outline-none focus:border-emerald-600">
-                                <option value="A">Option A</option>
-                                <option value="B">Option B</option>
-                                <option value="C">Option C</option>
-                                <option value="D">Option D</option>
-                              </select>
-                            </div>
-                            <div className="col-span-2">
-                              <label className="text-[9px] font-mono font-bold text-slate-400 uppercase">Explanation (Optional)</label>
-                              <input type="text" placeholder="Why is this correct?" value={mcqForm.explanation} onChange={e => setMcqForm({...mcqForm, explanation: e.target.value})} className="w-full mt-1 p-2 bg-slate-50 border border-slate-300 rounded font-mono text-xs outline-none focus:border-indigo-600" />
-                            </div>
-                          </div>
-                        </div>
+                    ) : newAsset.type === 'question' ? (
+                      <PyqSearchEngine onSelect={(qObj) => {
+                        setNewAsset(prev => ({
+                          ...prev, 
+                          payload: qObj.id, 
+                          title: prev.title || `PYQ: ${qObj.year}`
+                        }));
+                      }} />
+                    ) : (
+                      <textarea 
+                        rows="4" 
+                        placeholder={newAsset.type === 'mnemonic' ? "Type memory trick here..." : ['youtube', 'podcast'].includes(newAsset.type) ? "Paste YouTube URL here..." : "Paste URL or Code here..."} 
+                        value={newAsset.payload} 
+                        onChange={e => setNewAsset(prev => ({...prev, payload: e.target.value}))} 
+                        className="w-full p-3 bg-slate-900 text-white border border-slate-600 rounded-lg font-mono text-xs outline-none focus:border-indigo-500 mb-4" 
+                      />
+                    )}
 
-                      ) : newAsset.type === 'question' ? (
-                        <PyqSearchEngine onSelect={(qObj) => {
-                          setNewAsset(prev => ({
-                            ...prev, 
-                            payload: qObj.id, 
-                            title: prev.title || `PYQ: ${qObj.year}`
-                          }));
-                        }} />
-                      ) : (
-                        <textarea 
-                          rows="4" 
-                          placeholder={newAsset.type === 'mnemonic' ? "Type memory trick here..." : "Paste URL or Code here..."} 
-                          value={newAsset.payload} 
-                          onChange={e => setNewAsset(prev => ({...prev, payload: e.target.value}))} 
-                          className="w-full p-2 bg-white border border-slate-300 rounded font-mono text-xs outline-none focus:border-indigo-600 mb-3" 
-                        />
-                      )}
-
-                      {newAsset.type === 'question' && newAsset.payload && (
-                        <div className="mb-3 p-2 bg-fuchsia-100 border border-fuchsia-300 rounded text-fuchsia-800 text-[10px] font-black tracking-widest uppercase flex items-center justify-between">
-                          <span>✓ PYQ Target Acquired: {newAsset.payload}</span>
-                          <button onClick={() => setNewAsset(prev => ({...prev, payload: ''}))} className="text-fuchsia-500 hover:text-fuchsia-700 underline">Clear</button>
-                        </div>
-                      )}
-
-                      <button onClick={handleAddAsset} className="w-full py-3 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs rounded-lg shadow-sm transition-colors">➕ SAVE ASSET TO CLOUD</button>
-                    </div>
-                  </div>
-
-                  <div className="w-full mb-8 text-left">
-                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">2. Queued Pre-Points (Spacebar Reveal Sequence)</h3>
-                    <div className="space-y-2 mb-4">
-                      {safePrePoints.map((pt, i) => (
-                        <div key={i} className="flex items-center gap-2 bg-white p-2 border border-slate-200 rounded-xl shadow-sm">
-                          <span className="font-mono text-xs text-indigo-500 font-bold pl-2">#{i+1}</span>
-                          <input type="text" value={pt} onChange={(e) => { const updated = [...safePrePoints]; updated[i] = e.target.value; updatePrePoints(updated); }} className="flex-1 bg-transparent border-none text-xs font-semibold text-slate-800 focus:bg-slate-50 p-1 rounded outline-none" />
-                          <button onClick={() => { const updated = safePrePoints.filter((_, idx) => idx !== i); updatePrePoints(updated); }} className="text-rose-500 hover:bg-rose-50 font-bold px-2.5 py-1 rounded text-xs">✕</button>
-                        </div>
-                      ))}
-                    </div>
-                    <form onSubmit={(e) => { e.preventDefault(); if (!newPrePoint.trim()) return; updatePrePoints([...safePrePoints, newPrePoint.trim()]); setNewPrePoint(''); }} className="flex gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200">
-                      <input type="text" value={newPrePoint} onChange={(e) => setNewPrePoint(e.target.value)} placeholder="Type new pre-point text here..." className="flex-1 bg-white border border-slate-300 px-3 py-2 rounded text-xs font-semibold text-slate-800 outline-none focus:border-indigo-600" />
-                      <button type="submit" disabled={saveStatus === 'saving'} className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded shadow-sm">➕ ADD POINT</button>
-                    </form>
+                    <button onClick={handleAddAsset} className="w-full py-4 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-sm rounded-xl shadow-sm transition-colors">➕ SAVE ASSET TO CLOUD</button>
                   </div>
                 </div>
 
-              ) : isClassworkCreatorOpen ? (
-                // 🔥 THE NEW CLASSWORK CREATOR PANEL WITH EDIT/DELETE
-                <div className="flex-1 flex flex-col items-center justify-start w-full max-w-5xl mx-auto py-2 h-full overflow-hidden relative z-50">
-                  <div className="w-full flex justify-between items-center mb-6 shrink-0">
-                    <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase flex items-center gap-2">
-                      <span className="text-emerald-500">✍️</span> Synthesis Lab Manager
-                    </h2>
-                    <div className="flex bg-slate-200 rounded-lg p-1">
-                      <button onClick={() => { setClassworkViewMode('manage'); setEditingClassworkId(null); setClassworkForm({ title: '', required_plan: 'Free', mission_directive: 'Synthesize the concept below.', keywords: '', mnemonic_code: '', magic_paragraph: '', extractor_text: '', expansion: '' }); }} className={`px-4 py-1.5 rounded-md text-xs font-bold uppercase transition-all ${classworkViewMode === 'manage' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}>Manage List</button>
-                      <button onClick={() => setClassworkViewMode('create')} className={`px-4 py-1.5 rounded-md text-xs font-bold uppercase transition-all ${classworkViewMode === 'create' ? 'bg-white shadow-sm text-emerald-600' : 'text-slate-500 hover:text-slate-700'}`}>{editingClassworkId ? 'Editing Mode' : 'Create New'}</button>
-                    </div>
+              </div>
+
+            ) : isClassworkCreatorOpen ? (
+              <div className="flex-1 flex flex-col items-center justify-start w-full max-w-4xl mx-auto py-2 h-full overflow-hidden relative z-50">
+                <div className="w-full flex justify-between items-center mb-6 shrink-0">
+                  <h2 className="text-xl font-black text-white tracking-tight uppercase flex items-center gap-2">
+                    <span className="text-emerald-500">✍️</span> Synthesis Lab Manager
+                  </h2>
+                  <div className="flex bg-slate-800 rounded-lg p-1">
+                    <button onClick={() => { setClassworkViewMode('manage'); setEditingClassworkId(null); setClassworkForm({ title: '', required_plan: 'Free', mission_directive: 'Synthesize the concept below.', keywords: '', mnemonic_code: '', magic_paragraph: '', extractor_text: '', expansion: '' }); }} className={`px-4 py-2 rounded-md text-xs font-bold uppercase transition-all ${classworkViewMode === 'manage' ? 'bg-slate-700 shadow-sm text-white' : 'text-slate-400 hover:text-slate-300'}`}>Manage List</button>
+                    <button onClick={() => setClassworkViewMode('create')} className={`px-4 py-2 rounded-md text-xs font-bold uppercase transition-all ${classworkViewMode === 'create' ? 'bg-slate-700 shadow-sm text-emerald-400' : 'text-slate-400 hover:text-slate-300'}`}>{editingClassworkId ? 'Editing Mode' : 'Create New'}</button>
                   </div>
-                  
-                  {classworkViewMode === 'manage' ? (
-                    <div className="w-full flex-1 overflow-y-auto custom-scrollbar pr-2">
-                      {classworkList.length === 0 ? <p className="text-slate-500 font-mono text-sm py-10">No active classwork. Go create one!</p> : (
-                        <div className="grid grid-cols-1 gap-3">
-                          {classworkList.map(task => (
-                            <div key={task.id} className="bg-white border border-slate-200 p-4 rounded-xl shadow-sm flex items-center justify-between text-left hover:border-emerald-300 transition-colors">
-                              <div>
-                                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 bg-slate-100 px-2 py-0.5 rounded mr-2">{task.required_plan || 'Free'}</span>
-                                <span className="font-bold text-slate-800 text-lg">{task.title}</span>
-                                <div className="text-xs text-slate-500 font-medium mt-1 truncate max-w-lg">{task.mission_directive || task.instructions}</div>
-                              </div>
+                </div>
+                
+                {classworkViewMode === 'manage' ? (
+                  <div className="w-full flex-1 overflow-y-auto custom-scrollbar pr-2">
+                    {classworkList.length === 0 ? <p className="text-slate-500 font-mono text-sm py-10 text-center">No active classwork. Go create one!</p> : (
+                      <div className="grid grid-cols-1 gap-4">
+                        {classworkList.map(task => (
+                          <div key={task.id} className="bg-slate-800 border border-slate-700 p-5 rounded-2xl shadow-sm flex flex-col justify-between text-left hover:border-emerald-500/50 transition-colors">
+                            <div className="mb-3">
+                              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 bg-slate-900 px-2 py-1 rounded mr-2">{task.required_plan || 'Free'}</span>
+                              <span className="font-bold text-white text-lg">{task.title}</span>
+                            </div>
+                            <div className="flex items-center justify-between w-full">
+                              <div className="text-xs text-slate-400 font-medium truncate max-w-sm">{task.mission_directive || task.instructions}</div>
                               <div className="flex items-center gap-2 shrink-0">
-                                <button onClick={() => handleEditClassworkClick(task)} className="px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 font-bold text-xs rounded border border-blue-200">Edit</button>
-                                <button onClick={() => handleDeleteClasswork(task.id)} className="px-3 py-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 font-bold text-xs rounded border border-rose-200">Delete</button>
+                                <button onClick={() => handleEditClassworkClick(task)} className="px-4 py-1.5 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 font-bold text-xs rounded-lg border border-blue-500/30">Edit</button>
+                                <button onClick={() => handleDeleteClasswork(task.id)} className="px-4 py-1.5 bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 font-bold text-xs rounded-lg border border-rose-500/30">Delete</button>
                               </div>
                             </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <form onSubmit={handleSaveClasswork} className="w-full flex-1 overflow-y-auto custom-scrollbar pr-2 text-left bg-slate-50 p-6 rounded-3xl border border-slate-200 shadow-inner space-y-4">
-                      <div className="grid grid-cols-3 gap-4">
-                        <div className="col-span-2">
-                          <label className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">Assignment Title</label>
-                          <input type="text" required placeholder="e.g. Explain Derrida's Différance" value={classworkForm.title} onChange={e => setClassworkForm({...classworkForm, title: e.target.value})} className="w-full mt-1 p-3 bg-white border border-slate-300 rounded-xl font-bold text-sm text-slate-800 outline-none focus:border-emerald-500" />
-                        </div>
-                        <div>
-                          <label className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">Access Plan</label>
-                          <select value={classworkForm.required_plan} onChange={e => setClassworkForm({...classworkForm, required_plan: e.target.value})} className="w-full mt-1 p-3 bg-white border border-slate-300 rounded-xl font-bold text-sm text-slate-800 outline-none focus:border-emerald-500">
-                            {ACCESS_PLANS.map(plan => <option key={plan.value} value={plan.value}>{plan.label}</option>)}
-                          </select>
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">Mission Directive (Instructions)</label>
-                        <input type="text" required value={classworkForm.mission_directive} onChange={e => setClassworkForm({...classworkForm, mission_directive: e.target.value})} className="w-full mt-1 p-3 bg-white border border-slate-300 rounded-xl font-medium text-sm text-slate-600 outline-none focus:border-emerald-500" />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">Target Keywords (Comma Separated)</label>
-                          <input type="text" placeholder="e.g. Deconstruction, Logocentrism" value={classworkForm.keywords} onChange={e => setClassworkForm({...classworkForm, keywords: e.target.value})} className="w-full mt-1 p-3 bg-white border border-slate-300 rounded-xl font-bold text-sm text-cyan-600 outline-none focus:border-emerald-500" />
-                        </div>
-                        <div>
-                          <label className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">Mnemonic Code (Small Badge)</label>
-                          <input type="text" placeholder="e.g. S-P-O-C" value={classworkForm.mnemonic_code} onChange={e => setClassworkForm({...classworkForm, mnemonic_code: e.target.value})} className="w-full mt-1 p-3 bg-white border border-slate-300 rounded-xl font-bold text-sm text-amber-600 outline-none focus:border-emerald-500" />
-                        </div>
-                      </div>
-
-                      <div className="border-t border-slate-200 pt-4 mt-2">
-                        <div className="flex justify-between items-center mb-1">
-                          <label className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Premium HTML Sandbox (Webview)</label>
-                          <span className="text-[9px] font-bold text-slate-400 bg-slate-200 px-2 py-0.5 rounded">Tailwind CSS is auto-injected. Paste HTML/JS widgets here.</span>
-                        </div>
-                        <textarea rows="4" placeholder="<div class='p-4 bg-blue-100 rounded'>Hello World</div>" value={classworkForm.magic_paragraph} onChange={e => setClassworkForm({...classworkForm, magic_paragraph: e.target.value})} className="w-full p-4 bg-[#f8fafc] text-indigo-900 border border-slate-300 rounded-xl font-mono text-sm outline-none focus:border-emerald-500 custom-scrollbar" />
-                      </div>
-
-                      <div className="border-t border-slate-200 pt-4 mt-2">
-                        <div className="flex justify-between items-center mb-1">
-                          <label className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Concept Extractor Game (Interactive Paragraph)</label>
-                          <span className="text-[9px] font-bold text-slate-400 bg-slate-200 px-2 py-0.5 rounded">Wrap target words in **asterisks** to make them clickable</span>
-                        </div>
-                        <textarea rows="4" placeholder="e.g. English literature encompasses works like **poetry** and **drama**." value={classworkForm.extractor_text} onChange={e => setClassworkForm({...classworkForm, extractor_text: e.target.value})} className="w-full p-4 bg-indigo-50 text-indigo-900 border border-indigo-200 rounded-xl font-medium text-sm outline-none focus:border-emerald-500 custom-scrollbar" />
-                      </div>
-
-                      <div className="border-t border-slate-200 pt-4 mt-2">
-                        <label className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider mb-1 block">Standard Source Material / Code Expansion</label>
-                        <textarea rows="4" placeholder="Paste standard text or code syntax here..." value={classworkForm.expansion} onChange={e => setClassworkForm({...classworkForm, expansion: e.target.value})} className="w-full p-4 bg-[#0a0f1c] text-cyan-400 border border-slate-300 rounded-xl font-mono text-sm outline-none focus:border-emerald-500 custom-scrollbar" />
-                      </div>
-
-                      <div className="flex gap-3 pt-2">
-                        <button type="button" onClick={() => setIsClassworkCreatorOpen(false)} className="flex-1 py-3 bg-white hover:bg-slate-100 text-slate-600 font-black text-xs uppercase tracking-widest rounded-xl border border-slate-300 transition-colors">CANCEL</button>
-                        <button type="submit" disabled={saveStatus === 'saving'} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-widest rounded-xl shadow-lg transition-all">{saveStatus === 'saving' ? 'SAVING...' : editingClassworkId ? '💾 UPDATE ASSIGNMENT' : '🚀 CREATE NEW ASSIGNMENT'}</button>
-                      </div>
-                    </form>
-                  )}
-                </div>
-
-              ) : (
-                <div className={`transition-all duration-500 flex flex-col items-start w-full relative z-30 ${activeOverlay ? 'opacity-10 blur-sm scale-95' : 'opacity-100 blur-0 scale-100'}`}>
-                  <h1 className={`text-2xl md:text-4xl font-black tracking-tight mb-6 mt-1 pb-3 select-none w-full text-left transition-all ${chromaMode ? 'text-white border-transparent' : 'text-slate-900 border-b border-slate-100'}`} style={videoTextArmor}>{currentStep.index_title}</h1>
-                  
-                  {stageList.length > 0 && (
-                    <div className="w-full text-left">
-                      <ul className="space-y-4">
-                        {stageList.map((item, i) => (
-                          <li key={i} className={`flex items-start gap-3.5 group animate-[slide-up_0.2s_ease-out_forwards] ${isDrawMode ? 'pointer-events-none' : 'pointer-events-auto'}`}>
-                            <span className={`text-xl md:text-2xl font-black select-none mt-0.5 ${chromaMode ? 'text-amber-400' : 'text-indigo-600'}`} style={chromaMode ? { textShadow: '1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000' } : {}}>▪</span>
-                            <textarea value={item} disabled={isDrawMode} onChange={(e) => { const newList = [...stageList]; newList[i] = e.target.value; setStageList(newList); }} onFocus={handleAutoResize} onInput={handleAutoResize} className={`flex-1 bg-transparent text-xl md:text-2xl font-mono font-black leading-relaxed border-none outline-none rounded px-2 py-0.5 resize-none overflow-hidden block transition-all ${chromaMode ? 'text-white' : 'text-slate-800 focus:bg-slate-50'}`} style={videoTextArmor} rows={1} />
-                            <button onClick={() => setStageList(prev => prev.filter((_, idx) => idx !== i))} className="opacity-0 group-hover:opacity-100 text-rose-500 font-sans font-bold text-lg px-2 hover:bg-rose-50 rounded mt-1">✕</button>
-                          </li>
+                          </div>
                         ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {stageList.length > 0 && !isDrawMode && (
-                    <div className="w-full flex justify-start mt-8 animate-fade-in pointer-events-auto">
-                      <button onClick={handleQuickExtend} className={`px-5 py-2.5 font-black text-xs flex items-center gap-2 transition-all shadow-sm rounded-xl border-2 border-dashed ${chromaMode ? 'bg-white text-indigo-900 border-indigo-900' : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border-indigo-200'}`}>
-                        <span className="text-lg">⚡</span><span>WHITEBOARD FULL? QUICK EXTEND SLIDE</span>
-                      </button>
-                    </div>
-                  )}
-
-                  {stageList.length === 0 && !isDrawMode && (
-                    <div className={`font-mono text-sm mt-16 mx-auto p-8 rounded-2xl pointer-events-auto border-dashed ${chromaMode ? 'text-slate-800 bg-transparent border-none' : 'text-slate-400 border border-slate-200 bg-slate-50/50'}`}>
-                      [ Whiteboard Empty — Type in console below to append bullet points ]
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* 🔥 THE ELITE ACADEMIC PRESENTATION CANVAS (FIXED CLIPPING) */}
-              {activeOverlay && (() => {
-                const triggerAsset = currentAssets.find(a => a.id === activeOverlay);
-                if (!triggerAsset) return null;
-                return (
-                  <div className="absolute inset-0 flex items-center justify-center z-50 animate-fade-in pointer-events-none p-4">
-                    
-                    <div className={`w-[96vw] max-w-[1600px] h-[94vh] flex flex-col pointer-events-auto transition-all duration-300 shadow-[0_0_80px_rgba(0,0,0,0.8)] rounded-2xl overflow-hidden ${
-                      chromaMode ? 'bg-[#00FF00] border-none' : 'bg-slate-100/95 backdrop-blur-xl border border-slate-300'
-                    }`}>
-                      
-                      {/* HEADER BAR */}
-                      <div className={`flex justify-between items-center px-6 py-3 border-b shrink-0 ${chromaMode ? 'bg-slate-900 border-slate-900' : 'bg-white border-slate-200 shadow-sm'}`}>
-                        <div className="flex items-center gap-3">
-                          <span className={`text-[10px] font-black tracking-widest uppercase px-3 py-1 rounded-md ${chromaMode ? 'bg-slate-800 text-[#00FF00]' : 'bg-slate-100 text-slate-500 border border-slate-200'}`}>
-                            {getAssetIcon(triggerAsset.type)} PRESENTATION MODE
-                          </span>
-                          <span className={`text-sm font-bold truncate max-w-md ${chromaMode ? 'text-white' : 'text-slate-800'}`}>
-                            {triggerAsset.title}
-                          </span>
-                        </div>
-
-                        <div className="flex items-center gap-3">
-                          {['image', 'svg'].includes(triggerAsset.type) && (
-                            <div className={`flex items-center rounded-lg border text-xs font-mono font-black shadow-sm overflow-hidden ${chromaMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-800'}`}>
-                              <button onClick={() => setOverlayZoom(z => Math.max(0.5, Number((z - 0.25).toFixed(2))))} className="px-3 py-1 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">−</button>
-                              <span className="px-3 py-1 select-none text-[10px] min-w-12 text-center">{Math.round(overlayZoom * 100)}%</span>
-                              <button onClick={() => setOverlayZoom(z => Math.min(4, Number((z + 0.25).toFixed(2))))} className="px-3 py-1 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">+</button>
-                              {overlayZoom !== 1 && (
-                                <button onClick={() => setOverlayZoom(1)} className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-[9px] font-bold tracking-tighter uppercase transition-colors">FIT</button>
-                              )}
-                            </div>
-                          )}
-                          <button onClick={() => { setActiveOverlay(null); setOverlayZoom(1); }} className={`font-bold px-5 py-1.5 rounded-lg text-xs shadow-sm transition-all ${chromaMode ? 'bg-slate-900 text-white hover:bg-slate-800 border border-slate-700' : 'bg-rose-500 hover:bg-rose-600 text-white border border-rose-600'}`}>
-                            EXIT PRESENTATION ✕
-                          </button>
-                        </div>
                       </div>
-                      
-                      {/* HUGE CONTENT AREA (FLEX-COL + MY-AUTO FIXES ALL OVERFLOW CLIPPING) */}
-                      <div className="flex-1 w-full h-full overflow-y-auto custom-scrollbar flex flex-col p-4 md:p-8 relative bg-slate-200/50">
-                        
-                        {triggerAsset.type === 'youtube' && getYoutubeId(triggerAsset.payload) ? (
-                          <div className="my-auto mx-auto w-full max-w-7xl shrink-0 shadow-2xl rounded-2xl overflow-hidden border border-slate-800 bg-black aspect-video">
-                            <iframe className="w-full h-full" src={`https://www.youtube.com/embed/${getYoutubeId(triggerAsset.payload)}?autoplay=1`} frameBorder="0" allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen />
-                          </div>
-                        
-                        ) : triggerAsset.type === 'image' ? (
-                          <div className="my-auto mx-auto shrink-0 transition-transform duration-200" style={{ transform: `scale(${overlayZoom})`, transformOrigin: 'top center' }}>
-                            <img src={triggerAsset.payload} alt={triggerAsset.title} className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl border border-slate-300 bg-white" />
-                          </div>
-                        
-                        ) : triggerAsset.type === 'question' ? (
-                          <div className="my-auto mx-auto w-full max-w-5xl bg-white p-8 md:p-14 rounded-3xl shadow-2xl border border-slate-200 shrink-0">
-                            <PyqInteractiveBlock questionTarget={triggerAsset.payload} />
-                          </div>
-                        
-                        ) : triggerAsset.type === 'custom_mcq' ? (
-                          <div className="my-auto mx-auto w-full max-w-5xl bg-white p-8 md:p-14 rounded-3xl shadow-2xl border border-slate-200 shrink-0">
-                            <div className="flex items-center justify-between border-b border-slate-200 pb-4 mb-8">
-                              <span className="text-[12px] font-black tracking-widest px-4 py-1.5 rounded-lg uppercase border bg-amber-100 text-amber-800 border-amber-200">📝 TEACHER PREVIEW: CUSTOM MCQ</span>
-                            </div>
-                            <p className="text-2xl md:text-3xl font-bold leading-relaxed whitespace-pre-wrap mb-10 text-slate-800">
-                              {JSON.parse(triggerAsset.payload || '{}').question}
-                            </p>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-                              {['A', 'B', 'C', 'D'].map(opt => {
-                                const mcqData = JSON.parse(triggerAsset.payload || '{}');
-                                const isCorrect = mcqData.correct === opt;
-                                return (
-                                  <div key={opt} className={`p-6 rounded-2xl border-2 text-lg font-bold flex items-center gap-4 ${isCorrect ? 'bg-emerald-50 border-emerald-400 text-emerald-800 shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-600'}`}>
-                                    <span className={`h-8 w-8 flex items-center justify-center rounded-full text-sm shrink-0 ${isCorrect ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-500'}`}>{opt}</span>
-                                    <span>{mcqData[`opt${opt}`]}</span>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                            {JSON.parse(triggerAsset.payload || '{}').explanation && (
-                              <div className="p-6 bg-indigo-50 border border-indigo-200 rounded-2xl text-lg text-indigo-900 shadow-sm">
-                                <strong className="font-black text-indigo-600 block mb-2 uppercase tracking-widest text-sm">Teacher Explanation:</strong> 
-                                {JSON.parse(triggerAsset.payload || '{}').explanation}
-                              </div>
-                            )}
-                          </div>
-
-                        ) : triggerAsset.type === 'svg' ? (
-                          <div className="my-auto mx-auto w-full max-w-6xl flex flex-col shrink-0 transition-transform" style={{ transform: `scale(${overlayZoom})`, transformOrigin: 'top center' }}>
-                             <div className="w-full min-h-[80vh] flex flex-col bg-white rounded-2xl shadow-2xl border border-slate-300 overflow-hidden">
-                               <div className="w-full h-10 bg-slate-100 border-b border-slate-200 flex items-center px-5 shrink-0">
-                                 <div className="flex gap-2"><div className="w-3 h-3 rounded-full bg-rose-400"></div><div className="w-3 h-3 rounded-full bg-amber-400"></div><div className="w-3 h-3 rounded-full bg-emerald-400"></div></div>
-                                 <span className="ml-5 text-[11px] font-mono text-slate-400 font-bold uppercase tracking-widest">NerdSchool CodeWeb Canvas</span>
-                               </div>
-                               <iframe srcDoc={getIframeDoc(triggerAsset.payload)} className="w-full flex-1 min-h-[80vh] border-none bg-white" sandbox="allow-scripts allow-same-origin" />
-                             </div>
-                          </div>
-                           
-                        ) : triggerAsset.type === 'mnemonic' ? (
-                          <div className="my-auto mx-auto w-full max-w-5xl bg-gradient-to-br from-amber-400 to-orange-600 rounded-[3rem] p-12 md:p-20 shadow-2xl text-center relative overflow-hidden shrink-0">
-                            <div className="absolute top-0 right-0 opacity-10 text-[250px] -mt-16 -mr-10 select-none pointer-events-none">🧠</div>
-                            <h3 className="text-amber-100 font-black tracking-widest uppercase mb-6 text-xl drop-shadow-md">Memory Hack</h3>
-                            <p className="text-4xl md:text-6xl font-black text-white leading-tight drop-shadow-xl">{triggerAsset.payload}</p>
-                          </div>
-                          
-                        ) : triggerAsset.type === 'code' ? (
-                          <div className="my-auto mx-auto w-full max-w-5xl flex flex-col bg-[#0a0f1c] rounded-3xl shadow-2xl border border-slate-700 overflow-hidden shrink-0 max-h-[85vh]">
-                              <div className="h-14 bg-slate-900 border-b border-slate-800 flex items-center px-6 shrink-0">
-                                  <div className="flex gap-2"><div className="w-3.5 h-3.5 rounded-full bg-rose-500"></div><div className="w-3.5 h-3.5 rounded-full bg-amber-500"></div><div className="w-3.5 h-3.5 rounded-full bg-emerald-500"></div></div>
-                                  <span className="ml-6 font-mono text-sm text-slate-500 font-bold">syntax_expansion.sh</span>
-                              </div>
-                              <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-                                  <pre className="font-mono text-cyan-400 text-xl md:text-2xl leading-relaxed tracking-wide whitespace-pre-wrap">
-                                      <code>{triggerAsset.payload}</code>
-                                  </pre>
-                              </div>
-                          </div>
-                          
-                        ) : (
-                          <div className="my-auto mx-auto p-10 text-slate-500 font-mono">Unknown asset type.</div>
-                        )}
-                      </div>
-
-                    </div>
+                    )}
                   </div>
-                );
-              })()}
+                ) : (
+                  <form onSubmit={handleSaveClasswork} className="w-full flex-1 overflow-y-auto custom-scrollbar pr-2 text-left bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-inner space-y-4">
+                    <div>
+                      <label className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">Assignment Title</label>
+                      <input type="text" required placeholder="e.g. Explain Derrida's Différance" value={classworkForm.title} onChange={e => setClassworkForm({...classworkForm, title: e.target.value})} className="w-full mt-1 p-3 bg-slate-900 border border-slate-600 rounded-xl font-bold text-sm text-white outline-none focus:border-emerald-500" />
+                    </div>
 
-            </div>
+                    <div className="border-t border-slate-700 pt-4 mt-2">
+                      <div className="flex justify-between items-center mb-2">
+                        <label className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Premium HTML Sandbox (Webview)</label>
+                      </div>
+                      <textarea rows="4" placeholder="<div class='p-4 bg-blue-100 rounded'>Hello World</div>" value={classworkForm.magic_paragraph} onChange={e => setClassworkForm({...classworkForm, magic_paragraph: e.target.value})} className="w-full p-4 bg-[#0a0f1c] text-cyan-400 border border-slate-600 rounded-xl font-mono text-sm outline-none focus:border-emerald-500 custom-scrollbar" />
+                    </div>
 
-            {/* PRE-POINTS REVEAL BAR */}
-            <div className={`min-h-14 rounded-xl p-2.5 flex items-center gap-2.5 overflow-x-auto z-50 select-none relative transition-colors ${chromaMode ? 'bg-transparent border-none' : 'bg-slate-50 border border-slate-200/80'}`}>
-              <div className={`flex items-center gap-2 shrink-0 pr-3 border-r ${chromaMode ? 'border-slate-800' : 'border-slate-200'}`}>
-                <span className={`text-[10px] font-mono font-bold uppercase ${chromaMode ? 'text-slate-800' : 'text-slate-400'}`}>Pre-Points</span>
-                {!isSpawning && !isMediaBayOpen && !isClassworkCreatorOpen && (
-                  <button onClick={() => setRevealedCount(prev => prev + 1)} disabled={revealedCount >= safePrePoints.length} className={`px-2 py-0.5 disabled:opacity-30 rounded text-[10px] font-mono font-black shadow-sm ${chromaMode ? 'bg-white text-indigo-900 border border-transparent' : 'bg-white hover:bg-slate-100 text-indigo-600 border-slate-300'}`}>+ REVEAL [SPC]</button>
+                    <div className="flex gap-3 pt-4 border-t border-slate-700">
+                      <button type="button" onClick={() => setIsClassworkCreatorOpen(false)} className="flex-1 py-3 bg-slate-700 hover:bg-slate-600 text-white font-black text-xs uppercase tracking-widest rounded-xl border border-slate-600 transition-colors">CANCEL</button>
+                      <button type="submit" disabled={saveStatus === 'saving'} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-widest rounded-xl shadow-md transition-all">{saveStatus === 'saving' ? 'SAVING...' : editingClassworkId ? 'UPDATE' : 'CREATE'}</button>
+                    </div>
+                  </form>
                 )}
               </div>
 
-              {safePrePoints.length > 0 ? (
-                safePrePoints.map((pt, i) => {
-                  const isRevealed = i < revealedCount;
-                  return <span key={i} onClick={() => !isRevealed && setRevealedCount(i + 1)} className={`text-xs font-semibold px-3 py-1 rounded-lg shrink-0 transition-all duration-300 ${isRevealed ? (chromaMode ? 'bg-slate-900 text-white font-bold scale-100' : 'bg-white text-indigo-950 border border-slate-200 shadow-sm scale-100') : 'bg-slate-200/60 text-transparent select-none blur-[4px] scale-95 cursor-pointer'}`} style={isRevealed && chromaMode ? { border: '1px solid #00FF00' } : {}}>{pt}</span>;
-                })
-              ) : <span className={`text-xs font-mono italic ${chromaMode ? 'text-slate-800' : 'text-slate-400'}`}>No pre-points queued...</span>}
-            </div>
+            ) : (
+              <div className={`flex-1 flex flex-col relative overflow-hidden bg-slate-100 shadow-2xl transition-all duration-500 ${splitViewMode ? 'rounded-none border-none' : 'rounded-2xl border border-slate-300'}`}>
+                 
+                 {/* STUDIO HEADER */}
+                 <div className="h-14 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0 z-[70] shadow-sm">
+                   <div className="flex items-center gap-4">
+                     {splitViewMode && (
+                       <button onClick={() => { setSplitViewMode(false); setShowLMS(true); setShowSynapse(true); }} className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded text-[10px] font-black tracking-widest uppercase transition-colors shadow-sm flex items-center gap-2">
+                         ◫ EXIT FULLSCREEN
+                       </button>
+                     )}
+                     <div className="flex flex-col justify-center">
+                       <h1 className="text-base font-black text-slate-800 tracking-tight leading-none mb-0.5">{currentStep.index_title || 'Untitled Module'}</h1>
+                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">{currentStep.chapter_title}</span>
+                     </div>
+                   </div>
+                   <div className="flex items-center gap-3">
+                     <button onClick={() => commitToCloud()} disabled={saveStatus === 'saving'} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shadow-sm border ${saveStatus === 'saved' ? 'bg-emerald-600 text-white border-emerald-700' : 'bg-indigo-600 hover:bg-indigo-500 text-white border-indigo-700'}`}>
+                       {saveStatus === 'saving' ? 'SYNCING...' : saveStatus === 'saved' ? 'SAVED!' : '☁️ COMMIT SLIDE'}
+                     </button>
+                     <span className={`text-[10px] font-black tracking-widest px-3 py-1.5 rounded-lg uppercase shadow-sm border mx-2 ${isDrawMode ? 'bg-amber-400 text-amber-950 border-amber-500' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
+                       {isDrawMode ? '🖋️ INK ACTIVE' : '🖱️ SCROLL ACTIVE'}
+                     </span>
+                     <button onClick={() => setIsEditingCode(!isEditingCode)} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shadow-sm border ${isEditingCode ? 'bg-indigo-600 text-white border-indigo-700' : 'bg-slate-50 hover:bg-slate-200 text-slate-600 border-slate-300'}`}>
+                       {isEditingCode ? '👁️ PREVIEW HTML' : '💻 EDIT HTML'}
+                     </button>
+                   </div>
+                 </div>
+
+                 {/* STUDIO CANVAS / WEBVIEW */}
+                 <div className="flex-1 relative overflow-hidden bg-[#f1f5f9]">
+                   {isEditingCode ? (
+                     <textarea 
+                       value={stageList.join('\n')}
+                       onChange={(e) => setStageList([e.target.value])}
+                       className="w-full h-full p-8 md:p-12 bg-[#0a0f1c] text-cyan-400 font-mono text-base md:text-lg outline-none resize-none custom-scrollbar leading-relaxed"
+                       placeholder="Paste your raw HTML/Tailwind code here..."
+                     />
+                   ) : (
+                     <>
+                       <canvas 
+                         ref={canvasRef}
+                         width={1920}
+                         height={1080}
+                         className={`absolute inset-0 w-full h-full z-[60] ${isDrawMode ? 'touch-none cursor-crosshair' : ''}`}
+                         style={{ pointerEvents: isDrawMode ? 'auto' : 'none' }}
+                         onPointerDown={handlePointerDown}
+                         onPointerMove={handlePointerMove}
+                         onPointerUp={handlePointerUp}
+                         onPointerLeave={handlePointerUp}
+                       />
+                       {(() => {
+                         let htmlContent = '';
+                         if (stageList.length > 0 && stageList.join('\n').trim() !== '' && !stageList.join('\n').trim().startsWith('[')) {
+                           htmlContent = stageList.join('\n');
+                         } else if (currentStep.stage_payload && currentStep.stage_payload.trim() !== '' && !currentStep.stage_payload.trim().startsWith('[')) {
+                           htmlContent = currentStep.stage_payload;
+                         }
+                         
+                         if (htmlContent) {
+                           return (
+                             <iframe 
+                               srcDoc={getIframeDoc(htmlContent)} 
+                               className="w-full h-full border-none bg-slate-50 custom-scrollbar" 
+                               sandbox="allow-scripts allow-same-origin" 
+                             />
+                           );
+                         } else {
+                           return (
+                             <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 font-mono">
+                               <span className="text-6xl mb-6">🔮</span>
+                               <span className="text-2xl font-bold text-slate-600 mb-2">Glass Canvas Ready</span>
+                               <span className="text-sm text-slate-500 max-w-md text-center leading-relaxed">Click 💻 EDIT HTML to paste your content, then toggle INK ON to draw over it.</span>
+                             </div>
+                           );
+                         }
+                       })()}
+                     </>
+                   )}
+                 </div>
+              </div>
+            )}
+
+            {/* OVERLAY RENDERER (Visuals Only - Not Podcasts) */}
+            {activeOverlay && (() => {
+              const triggerAsset = currentAssets.find(a => a.id === activeOverlay);
+              // Safety fallback
+              if (!triggerAsset) return null;
+              
+              return (
+                <div className="absolute inset-0 flex items-center justify-center z-[100] animate-fade-in pointer-events-none p-4">
+                  <div className="w-[96vw] max-w-[1400px] h-[90vh] flex flex-col pointer-events-auto transition-all duration-300 shadow-[0_0_80px_rgba(0,0,0,0.8)] rounded-2xl overflow-hidden bg-slate-100/95 backdrop-blur-xl border border-slate-300">
+                    
+                    <div className="flex justify-between items-center px-6 py-3 border-b bg-white border-slate-200 shadow-sm shrink-0">
+                      <div className="flex items-center gap-3">
+                        <span className="text-[10px] font-black tracking-widest uppercase px-3 py-1 rounded-md bg-slate-100 text-slate-500 border border-slate-200">{getAssetIcon(triggerAsset.type)} PRESENTATION MODE</span>
+                        <span className="text-sm font-bold truncate max-w-md text-slate-800">{triggerAsset.title || 'Resource Viewing'}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {['image', 'svg'].includes(triggerAsset.type) && (
+                          <div className="flex items-center rounded-lg border text-xs font-mono font-black shadow-sm overflow-hidden bg-slate-50 border-slate-300 text-slate-800">
+                            <button onClick={() => setOverlayZoom(z => Math.max(0.5, Number((z - 0.25).toFixed(2))))} className="px-3 py-1 hover:bg-slate-200 transition-colors">−</button>
+                            <span className="px-3 py-1 select-none text-[10px] min-w-12 text-center">{Math.round(overlayZoom * 100)}%</span>
+                            <button onClick={() => setOverlayZoom(z => Math.min(4, Number((z + 0.25).toFixed(2))))} className="px-3 py-1 hover:bg-slate-200 transition-colors">+</button>
+                            {overlayZoom !== 1 && <button onClick={() => setOverlayZoom(1)} className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-[9px] font-bold tracking-tighter uppercase transition-colors">FIT</button>}
+                          </div>
+                        )}
+                        <button onClick={() => { setActiveOverlay(null); setOverlayZoom(1); }} className="font-bold px-5 py-1.5 rounded-lg text-xs shadow-sm transition-all bg-rose-500 hover:bg-rose-600 text-white border border-rose-600">EXIT PRESENTATION ✕</button>
+                      </div>
+                    </div>
+                    
+                    <div className="flex-1 w-full h-full overflow-y-auto custom-scrollbar flex flex-col p-4 md:p-8 relative bg-slate-200/50">
+                      {triggerAsset.type === 'youtube' && getYoutubeId(triggerAsset.payload) ? (
+                        <div className="my-auto mx-auto w-full max-w-7xl shrink-0 shadow-2xl rounded-2xl overflow-hidden border border-slate-800 bg-black aspect-video"><iframe className="w-full h-full" src={`https://www.youtube.com/embed/${getYoutubeId(triggerAsset.payload)}?autoplay=1`} frameBorder="0" allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen /></div>
+                      ) : triggerAsset.type === 'image' ? (
+                        <div className="my-auto mx-auto shrink-0 transition-transform duration-200" style={{ transform: `scale(${overlayZoom})`, transformOrigin: 'top center' }}><img src={triggerAsset.payload} alt={triggerAsset.title} className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl border border-slate-300 bg-white" /></div>
+                      ) : triggerAsset.type === 'question' ? (
+                        <div className="my-auto mx-auto w-full max-w-5xl bg-white p-8 md:p-14 rounded-3xl shadow-2xl border border-slate-200 shrink-0"><PyqInteractiveBlock questionTarget={triggerAsset.payload} /></div>
+                      ) : triggerAsset.type === 'custom_mcq' ? (
+                        <div className="my-auto mx-auto w-full max-w-5xl bg-white p-8 md:p-14 rounded-3xl shadow-2xl border border-slate-200 shrink-0"><CustomMcqBlock mcqPayload={triggerAsset.payload} /></div>
+                      ) : triggerAsset.type === 'svg' ? (
+                        <div className="my-auto mx-auto w-full max-w-6xl flex flex-col shrink-0 transition-transform" style={{ transform: `scale(${overlayZoom})`, transformOrigin: 'top center' }}>
+                           <div className="w-full min-h-[80vh] flex flex-col bg-white rounded-2xl shadow-2xl border border-slate-300 overflow-hidden">
+                             <div className="w-full h-10 bg-slate-100 border-b border-slate-200 flex items-center px-5 shrink-0"><div className="flex gap-2"><div className="w-3 h-3 rounded-full bg-rose-400"></div><div className="w-3 h-3 rounded-full bg-amber-400"></div><div className="w-3 h-3 rounded-full bg-emerald-400"></div></div><span className="ml-5 text-[11px] font-mono text-slate-400 font-bold uppercase tracking-widest">NerdSchool CodeWeb Canvas</span></div>
+                             <iframe srcDoc={getIframeDoc(triggerAsset.payload)} className="w-full flex-1 min-h-[80vh] border-none bg-white" sandbox="allow-scripts allow-same-origin" />
+                           </div>
+                        </div>
+                      ) : triggerAsset.type === 'mnemonic' ? (
+                        <div className="my-auto mx-auto w-full max-w-5xl bg-gradient-to-br from-amber-400 to-orange-600 rounded-[3rem] p-12 md:p-20 shadow-2xl text-center relative overflow-hidden shrink-0">
+                          <div className="absolute top-0 right-0 opacity-10 text-[250px] -mt-16 -mr-10 select-none pointer-events-none">🧠</div>
+                          <h3 className="text-amber-100 font-black tracking-widest uppercase mb-6 text-xl drop-shadow-md">Memory Hack</h3>
+                          <p className="text-4xl md:text-6xl font-black text-white leading-tight drop-shadow-xl">{triggerAsset.payload}</p>
+                        </div>
+                      ) : triggerAsset.type === 'code' ? (
+                        <div className="my-auto mx-auto w-full max-w-5xl flex flex-col bg-[#0a0f1c] rounded-3xl shadow-2xl border border-slate-700 overflow-hidden shrink-0 max-h-[85vh]">
+                            <div className="h-14 bg-slate-900 border-b border-slate-800 flex items-center px-6 shrink-0"><div className="flex gap-2"><div className="w-3.5 h-3.5 rounded-full bg-rose-500"></div><div className="w-3.5 h-3.5 rounded-full bg-amber-500"></div><div className="w-3.5 h-3.5 rounded-full bg-emerald-500"></div></div><span className="ml-6 font-mono text-sm text-slate-500 font-bold">syntax_expansion.sh</span></div>
+                            <div className="flex-1 overflow-y-auto p-8 custom-scrollbar"><pre className="font-mono text-cyan-400 text-xl md:text-2xl leading-relaxed tracking-wide whitespace-pre-wrap"><code>{triggerAsset.payload}</code></pre></div>
+                        </div>
+                      ) : <div className="my-auto mx-auto p-10 text-slate-500 font-mono">Unknown asset type.</div>}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
 
           </div>
         </main>
 
-        {/* ZONE 3: SYNAPSE SIDEBAR */}
-        <aside className={`bg-slate-50 border-l border-slate-200 flex flex-col z-10 shrink-0 transition-all duration-300 ${!showSynapse ? 'w-0 opacity-0 overflow-hidden border-none' : 'w-72 opacity-100'}`}>
-          <div className="p-3 bg-slate-100/80 border-b border-slate-200 font-mono text-xs font-bold text-slate-700 flex justify-between select-none"><span>SYNAPSE MEMORY</span><span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" /></div>
-          <div className="p-4 flex-1 flex flex-col gap-4">
-            <div className="bg-white border border-slate-200/80 rounded-xl p-3.5 shadow-sm text-center">
-              <span className="text-[9px] font-mono font-black text-slate-400 block uppercase tracking-wider mb-1">Active Linking Code</span>
-              <input type="text" value={liveLinkingCode} onChange={(e) => setLiveLinkingCode(e.target.value)} className="w-full text-center text-xl font-mono font-black text-indigo-600 tracking-wider bg-transparent border-none outline-none focus:bg-indigo-50/60 rounded p-0.5 transition-colors" />
+        {/* ZONE 3: SYNAPSE SIDEBAR (HIDES ON FULLSCREEN) */}
+        <aside className={`bg-slate-900 border-l border-slate-800 flex flex-col z-10 shrink-0 transition-all duration-300 ${
+          (!showSynapse || splitViewMode) ? 'w-0 opacity-0 overflow-hidden border-none' : 'w-80 opacity-100'
+        }`}>
+          <div className="p-4 border-b border-slate-800 flex items-center justify-between shrink-0 bg-slate-900/80 backdrop-blur-sm z-10">
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+              Synapse & Resources
+            </span>
+            <span className="px-2 py-0.5 bg-slate-800 text-slate-400 rounded text-[9px] font-bold">
+              {currentAssets.length + synapseNotes.length + (liveLinkingCode !== 'NONE' ? 1 : 0) + (safePrePoints.length > 0 ? 1 : 0)}
+            </span>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-6 pb-12">
+            
+            {/* --- 0. ACTIVE RECALL ENGINE (PRE-POINTS) --- */}
+            <div className="flex flex-col gap-2 pt-1 border-b border-slate-800 pb-5 mb-2">
+              <div className="flex items-center justify-between mb-1">
+                <h4 className="text-[9px] text-slate-500 font-bold uppercase tracking-widest pl-1 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span> Active Recall Engine
+                </h4>
+                <span className="text-[10px] font-black text-indigo-400">{revealedCount} / {safePrePoints.length}</span>
+              </div>
+              <div className="bg-slate-950 border border-slate-800 rounded-xl p-3 shadow-inner flex flex-col">
+                <div className="space-y-2 mb-3">
+                  {safePrePoints.map((pt, i) => {
+                    const isRevealed = i < revealedCount;
+                    return (
+                      <div key={i} onClick={() => !isRevealed && setRevealedCount(i + 1)} className={`p-2 rounded-md text-[10px] leading-snug transition-all duration-300 ${isRevealed ? 'bg-slate-800 border border-slate-700 text-white font-medium shadow-sm translate-x-0 opacity-100' : 'bg-slate-800/30 border border-slate-800/50 text-transparent cursor-pointer blur-[3px] hover:blur-[1px] -translate-x-1 opacity-60'}`}>
+                        {pt}
+                      </div>
+                    );
+                  })}
+                  {safePrePoints.length === 0 && <div className="text-[9px] text-slate-600 font-mono italic px-1">No pre-points queued.</div>}
+                </div>
+                
+                {revealedCount < safePrePoints.length && (
+                  <button onClick={() => setRevealedCount(prev => prev + 1)} className="w-full py-1.5 border border-dashed border-indigo-500/30 rounded-lg text-indigo-400/80 hover:bg-indigo-500/10 font-bold text-[9px] uppercase tracking-widest transition-all mb-3">
+                    Reveal Next [SPC]
+                  </button>
+                )}
+                
+                <form onSubmit={(e) => { e.preventDefault(); if (!newPrePoint.trim()) return; updatePrePoints([...safePrePoints, newPrePoint.trim()]); setNewPrePoint(''); }} className="mt-auto flex gap-1 border-t border-slate-800/80 pt-3">
+                  <input type="text" value={newPrePoint} onChange={(e) => setNewPrePoint(e.target.value)} placeholder="Add point..." className="flex-1 bg-slate-900 border border-slate-700 px-2 py-1.5 rounded text-[10px] text-white outline-none focus:border-indigo-500 font-medium" />
+                  <button type="submit" disabled={saveStatus === 'saving'} className="px-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] rounded shadow-sm">+</button>
+                </form>
+              </div>
             </div>
-            <div className="flex-1 bg-white border border-slate-200/80 rounded-xl p-4 relative flex flex-col shadow-sm">
-              <span className="text-[10px] font-mono font-bold text-slate-400 pb-2 mb-3 block border-b border-slate-100">LIVE TARGET SCRATCHPAD:</span>
-              <div className="flex-1 overflow-y-auto space-y-2.5 custom-scrollbar pr-1">
-                {synapseNotes.map((note, i) => (
-                  <div key={i} className="flex items-start gap-1.5 group">
-                    <span className="text-amber-500 font-bold mt-0.5 text-[10px]">↳</span>
-                    <textarea value={note} onChange={(e) => { const newNotes = [...synapseNotes]; newNotes[i] = e.target.value; setSynapseNotes(newNotes); }} onFocus={handleAutoResize} onInput={handleAutoResize} className="flex-1 bg-transparent text-slate-800 font-mono text-xs leading-relaxed resize-none overflow-hidden outline-none focus:bg-slate-50 p-1 rounded border border-transparent transition-colors" rows={1} />
-                    <button onClick={() => setSynapseNotes(prev => prev.filter((_, idx) => idx !== i))} className="opacity-0 group-hover:opacity-100 text-rose-500 font-black px-1.5 py-0.5 hover:bg-rose-50 rounded text-[10px]">✕</button>
+
+            {/* --- 1. ACTIVE LINKING CODE --- */}
+            {liveLinkingCode && liveLinkingCode !== 'NONE' && (
+              <div className="flex flex-col gap-2">
+                <h4 className="text-[9px] text-slate-500 font-bold uppercase tracking-widest pl-1 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> Active Linking Code
+                </h4>
+                <input type="text" value={liveLinkingCode} onChange={(e) => setLiveLinkingCode(e.target.value)} className="w-full text-center text-xl font-mono font-black text-indigo-400 tracking-wider bg-slate-950 rounded-xl p-3 border border-slate-800 shadow-inner outline-none focus:border-indigo-500" />
+              </div>
+            )}
+
+            {/* --- 2. INTERACTIVE MEDIA SECTION --- */}
+            {currentAssets.filter(a => ['youtube', 'podcast', 'question', 'custom_mcq', 'image', 'svg'].includes(a.type)).length > 0 && (
+              <div className="flex flex-col gap-2">
+                <h4 className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1 pl-1">Interactive Media</h4>
+                {currentAssets.filter(a => ['youtube', 'podcast', 'question', 'custom_mcq', 'image', 'svg'].includes(a.type)).map(asset => (
+                  <button key={asset.id} onClick={() => {
+                    // Route podcasts to the new mini-player state, everything else to the overlay!
+                    if (asset.type === 'podcast') {
+                      setActivePodcast(activePodcast === asset.id ? null : asset.id);
+                    } else {
+                      setActiveOverlay(asset.id);
+                    }
+                  }} className={`w-full text-left p-3.5 border rounded-xl transition-all group flex items-start gap-3 shadow-sm hover:shadow-md ${(asset.type === 'podcast' ? activePodcast === asset.id : activeOverlay === asset.id) ? 'bg-indigo-900/30 border-indigo-500' : 'bg-slate-800/50 hover:bg-slate-800 border-slate-700 hover:border-indigo-500/50'}`}>
+                    <div className="text-xl shrink-0 group-hover:scale-110 transition-transform">{getAssetIcon(asset.type)}</div>
+                    <div className="flex flex-col overflow-hidden w-full">
+                      <span className="text-xs font-bold text-slate-200 truncate pr-2 group-hover:text-indigo-300 transition-colors">{asset.title || 'Attached Media'}</span>
+                      <span className="text-[9px] font-mono text-slate-500 uppercase tracking-widest mt-0.5">
+                        {asset.type === 'podcast' ? (activePodcast === asset.id ? 'Playing...' : 'Play Audio') : `Launch ${asset.type.replace('_', ' ')}`}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+            
+            {/* --- 3. MEMORY HACKS SECTION --- */}
+            {currentAssets.filter(a => a.type === 'mnemonic').length > 0 && (
+              <div className="space-y-3">
+                <h4 className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1 pl-1">Memory Hacks</h4>
+                {currentAssets.filter(a => a.type === 'mnemonic').map(m => (
+                  <div key={m.id} className="bg-amber-900/10 border border-amber-500/30 rounded-xl p-4 shadow-sm relative overflow-hidden group">
+                     <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/10 rounded-full blur-2xl pointer-events-none transition-all group-hover:bg-amber-500/20"></div>
+                     <h4 className="text-[10px] text-amber-500 font-black uppercase tracking-widest mb-2 flex items-center gap-1.5 relative z-10"><span className="text-sm">🧠</span> Trick</h4>
+                     <p className="text-amber-100/90 text-sm font-semibold italic leading-relaxed relative z-10">{m.payload}</p>
                   </div>
                 ))}
               </div>
-              {synapseNotes.length > 0 && <button onClick={() => setSynapseNotes([])} className="mt-3 text-[9px] font-mono font-bold text-rose-500 self-end border border-rose-200 px-2.5 py-1 rounded bg-rose-50 hover:bg-rose-100">CLEAR ALL</button>}
+            )}
+            
+            {/* --- 4. CORE DATA SECTION --- */}
+            {currentAssets.filter(a => a.type === 'code').length > 0 && (
+              <div className="space-y-3">
+                <h4 className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1 pl-1">Core Data / Syntax</h4>
+                {currentAssets.filter(a => a.type === 'code').map(c => (
+                  <div key={c.id} className="bg-[#0f172a] border border-slate-700 rounded-xl p-4 shadow-sm relative group overflow-hidden">
+                     <h4 className="text-[10px] text-cyan-400 font-black uppercase tracking-widest mb-2 flex items-center gap-1.5"><span className="text-sm">💻</span> Keyword Expansion</h4>
+                     <div className="text-slate-300 font-mono text-xs whitespace-pre-wrap leading-relaxed custom-scrollbar overflow-x-auto">{c.payload}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* --- 5. TARGET SCRATCHPAD --- */}
+            <div className="flex flex-col gap-2 pt-2 border-t border-slate-800 mt-2">
+              <h4 className="text-[9px] text-slate-500 font-bold uppercase tracking-widest pl-1 pt-2">Target Scratchpad</h4>
+              <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 shadow-inner space-y-3">
+                {synapseNotes.map((note, i) => (
+                  <div key={i} className="flex items-start gap-2 group">
+                    <span className="text-amber-500 font-bold mt-0.5 text-[10px]">↳</span>
+                    <textarea value={note} onChange={(e) => { const newNotes = [...synapseNotes]; newNotes[i] = e.target.value; setSynapseNotes(newNotes); }} onFocus={handleAutoResize} onInput={handleAutoResize} className="flex-1 bg-transparent text-slate-300 font-mono text-xs leading-relaxed resize-none overflow-hidden outline-none focus:bg-slate-800 p-1 rounded border border-transparent transition-colors" rows={1} />
+                    <button onClick={() => setSynapseNotes(prev => prev.filter((_, idx) => idx !== i))} className="opacity-0 group-hover:opacity-100 text-rose-500 font-black px-1.5 py-0.5 hover:bg-rose-500/20 rounded text-[10px]">✕</button>
+                  </div>
+                ))}
+                {synapseNotes.length === 0 && <div className="text-[10px] text-slate-600 font-mono italic">Scratchpad empty. Fire text from console.</div>}
+                {synapseNotes.length > 0 && <button onClick={() => setSynapseNotes([])} className="mt-2 text-[9px] font-mono font-bold text-rose-400 self-end border border-rose-500/30 px-2.5 py-1 rounded bg-rose-500/10 hover:bg-rose-500/20 w-full transition-colors">CLEAR ALL</button>}
+              </div>
             </div>
+
+            {/* --- 6. EMPTY STATE --- */}
+            {currentAssets.length === 0 && synapseNotes.length === 0 && (liveLinkingCode === 'NONE' || !liveLinkingCode) && safePrePoints.length === 0 && (
+              <div className="text-center py-10 opacity-50">
+                <span className="text-3xl block mb-2">📦</span>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Deck Empty</p>
+              </div>
+            )}
+
           </div>
         </aside>
 
       </div>
+
+      {/* 🔥 THE NEW PODCAST MINI-PLAYER 🔥 */}
+      {activePodcast && (() => {
+        const podcastAsset = currentAssets.find(a => a.id === activePodcast);
+        if (!podcastAsset || !getYoutubeId(podcastAsset.payload)) return null;
+        return (
+          <div className="fixed bottom-20 right-8 w-80 bg-slate-900 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-slate-700 overflow-hidden z-[200] animate-fade-in flex flex-col">
+            <div className="flex justify-between items-center px-4 py-2.5 bg-slate-950 border-b border-slate-800">
+              <div className="flex items-center gap-2 overflow-hidden">
+                <span className="text-emerald-400 animate-pulse">🎧</span>
+                <span className="text-[10px] font-bold text-white truncate uppercase tracking-wider">{podcastAsset.title}</span>
+              </div>
+              <button onClick={() => setActivePodcast(null)} className="text-rose-500 hover:text-rose-400 font-black text-sm px-2">✕</button>
+            </div>
+            {/* The YouTube iframe container */}
+            <div className="w-full aspect-video bg-black">
+              <iframe className="w-full h-full" src={`https://www.youtube.com/embed/${getYoutubeId(podcastAsset.payload)}?autoplay=1`} frameBorder="0" allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen />
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ZONE 4: FOOTER CONSOLE */}
       <footer className="bg-white border-t border-slate-200 px-6 h-16 flex items-center justify-between gap-6 z-[100] relative shrink-0 shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
@@ -1418,13 +1425,21 @@ export default function TeachingDashboard() {
 
           {currentAssets.length > 0 && (
             <div className="relative">
-              <button onClick={() => setIsAssetMenuOpen(!isAssetMenuOpen)} className={`whitespace-nowrap px-3 py-1.5 rounded-lg border font-black transition-all shadow-sm flex items-center gap-2 ${activeOverlay ? 'bg-slate-900 text-white border-slate-900 shadow-inner' : 'bg-white hover:bg-slate-50 border-slate-300 text-slate-700'}`}>{activeOverlay ? '🎬 MEDIA ACTIVE' : `📦 MEDIA (${currentAssets.length})`}<span className="text-[8px]">{isAssetMenuOpen ? '▼' : '▲'}</span></button>
+              <button onClick={() => setIsAssetMenuOpen(!isAssetMenuOpen)} className={`whitespace-nowrap px-3 py-1.5 rounded-lg border font-black transition-all shadow-sm flex items-center gap-2 ${(activeOverlay || activePodcast) ? 'bg-slate-900 text-white border-slate-900 shadow-inner' : 'bg-white hover:bg-slate-50 border-slate-300 text-slate-700'}`}>{(activeOverlay || activePodcast) ? '🎬 MEDIA ACTIVE' : `📦 MEDIA (${currentAssets.length})`}<span className="text-[8px]">{isAssetMenuOpen ? '▼' : '▲'}</span></button>
               
               {isAssetMenuOpen && (
                 <div className="absolute bottom-[calc(100%+12px)] right-0 w-64 bg-white border border-slate-200 rounded-xl shadow-2xl p-2 z-[110] flex flex-col gap-1 animate-fade-in">
                   <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-2 pb-1.5 border-b border-slate-100 mb-1">Queued Overlays</div>
                   {currentAssets.map(asset => (
-                    <button key={asset.id} onClick={() => { setActiveOverlay(activeOverlay === asset.id ? null : asset.id); setOverlayZoom(1); setIsAssetMenuOpen(false); }} className={`text-left px-3 py-2.5 rounded-lg font-bold text-xs transition-all flex items-center gap-2.5 ${activeOverlay === asset.id ? 'bg-slate-900 text-white shadow-inner' : 'hover:bg-slate-50 text-slate-700'}`}><span className="text-sm shrink-0">{getAssetIcon(asset.type)}</span><span className="truncate leading-none pt-0.5">{asset.title}</span>{activeOverlay === asset.id && <span className="ml-auto text-rose-400 text-[10px]">✕</span>}</button>
+                    <button key={asset.id} onClick={() => { 
+                      if (asset.type === 'podcast') {
+                        setActivePodcast(activePodcast === asset.id ? null : asset.id);
+                      } else {
+                        setActiveOverlay(activeOverlay === asset.id ? null : asset.id); 
+                        setOverlayZoom(1); 
+                      }
+                      setIsAssetMenuOpen(false); 
+                    }} className={`text-left px-3 py-2.5 rounded-lg font-bold text-xs transition-all flex items-center gap-2.5 ${(activeOverlay === asset.id || activePodcast === asset.id) ? 'bg-slate-900 text-white shadow-inner' : 'hover:bg-slate-50 text-slate-700'}`}><span className="text-sm shrink-0">{getAssetIcon(asset.type)}</span><span className="truncate leading-none pt-0.5">{asset.title}</span>{(activeOverlay === asset.id || activePodcast === asset.id) && <span className="ml-auto text-rose-400 text-[10px]">✕</span>}</button>
                   ))}
                 </div>
               )}
