@@ -15,7 +15,7 @@ export default function PyqEngine({ user, onBack, onBackToCourse }) {
 
   // Security & Trial State
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const [searchesLeft, setSearchesLeft] = useState(3);
+  const [searchesLeft, setSearchesLeft] = useState(10); // Default to 10
 
   // Check if student has unlimited JRF / Premium access
   const hasUnlimitedAccess = () => {
@@ -32,17 +32,10 @@ export default function PyqEngine({ user, onBack, onBackToCourse }) {
 
   const isUnlimited = hasUnlimitedAccess();
 
-  // Load remaining free searches from device memory on boot
+  // 🔥 UPDATE: Load remaining free searches from the SECURE USER OBJECT, not localStorage!
   useEffect(() => {
-    if (!isUnlimited) {
-      const storageKey = `ns_pyq_trial_${user?.rollNumber || 'guest'}`;
-      const savedCount = localStorage.getItem(storageKey);
-      if (savedCount !== null) {
-        setSearchesLeft(parseInt(savedCount, 10));
-      } else {
-        localStorage.setItem(storageKey, '3');
-        setSearchesLeft(3);
-      }
+    if (!isUnlimited && user) {
+      setSearchesLeft(user.pyqSearchesLeft !== undefined ? user.pyqSearchesLeft : 10);
     }
   }, [user, isUnlimited]);
 
@@ -50,7 +43,7 @@ export default function PyqEngine({ user, onBack, onBackToCourse }) {
     e.preventDefault();
     if (!query.trim()) return;
     
-    // BOUNCER CHECK: Block search if out of free trials!
+    // Frontend Bouncer: Block unnecessary API calls if we already know they are out
     if (!isUnlimited && searchesLeft <= 0) {
       setShowUpgradeModal(true);
       return;
@@ -60,17 +53,26 @@ export default function PyqEngine({ user, onBack, onBackToCourse }) {
     setHasSearched(true);
     try {
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-      const res = await fetch(`${API_URL}/api/generate-pyq-test?q=${encodeURIComponent(query)}`);
+      
+      // 🔥 UPDATE: Send the user's Roll Number to the server so it can check the vault!
+      const res = await fetch(`${API_URL}/api/generate-pyq-test?q=${encodeURIComponent(query)}&rollNumber=${user?.rollNumber || 'guest'}`);
+      
+      // 🔥 UPDATE: Listen for the Server-Side Bouncer rejection!
+      if (res.status === 403) {
+        setSearchesLeft(0);
+        setShowUpgradeModal(true);
+        setIsSearching(false);
+        return;
+      }
+
       const data = await res.json();
       if (data.success) {
         setAvailableQuestions(data.data);
         setTotalFound(data.totalFound);
         
-        // Decrement free search counter after a successful search
+        // Decrement the UI counter (the server already securely deducted it from Google Sheets)
         if (!isUnlimited) {
-          const newCount = Math.max(0, searchesLeft - 1);
-          setSearchesLeft(newCount);
-          localStorage.setItem(`ns_pyq_trial_${user?.rollNumber || 'guest'}`, String(newCount));
+          setSearchesLeft(prev => Math.max(0, prev - 1));
         }
       }
     } catch (err) {
@@ -128,7 +130,7 @@ export default function PyqEngine({ user, onBack, onBackToCourse }) {
           <div className="flex items-center gap-3">
             {/* Status Badge */}
             <div className={`hidden md:flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${isUnlimited ? 'bg-fuchsia-950/50 border-fuchsia-800/50 text-fuchsia-300' : searchesLeft > 0 ? 'bg-amber-950/50 border-amber-800/50 text-amber-300' : 'bg-rose-950/50 border-rose-800/50 text-rose-300'}`}>
-              <span>{isUnlimited ? '👑 Unlimited Access' : `🎁 Free Trial: ${searchesLeft} / 3 Left`}</span>
+              <span>{isUnlimited ? '👑 Unlimited Access' : `🎁 Free Trial: ${searchesLeft} Left`}</span>
             </div>
             <button onClick={onBackToCourse || (() => window.history.back())} className="px-4 py-1.5 bg-fuchsia-900/50 hover:bg-fuchsia-800 text-fuchsia-300 text-xs font-bold rounded-md transition-colors border border-fuchsia-700/50">📺 Course Hub</button>
             <button onClick={onBack} className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-md transition-colors border border-slate-700">← Hub</button>
@@ -219,7 +221,7 @@ export default function PyqEngine({ user, onBack, onBackToCourse }) {
                   <span className="text-4xl">👑</span>
                 </div>
                 <h2 className="text-3xl font-black text-white mb-2 relative z-10 tracking-tight">PYQ Infinity Engine Locked</h2>
-                <p className="text-fuchsia-200 font-medium relative z-10 text-sm">You have used up your 3 free trial searches! Upgrade to unlock unlimited AI exam compilation.</p>
+                <p className="text-fuchsia-200 font-medium relative z-10 text-sm">You have used up your free trial searches! Upgrade to unlock unlimited AI exam compilation.</p>
               </div>
 
               <div className="p-8 bg-slate-900">
@@ -244,7 +246,6 @@ export default function PyqEngine({ user, onBack, onBackToCourse }) {
                 </div>
 
                 <div className="flex flex-col gap-3">
-                  {/* 🔥 UPDATED: Direct redirect to all product plans! */}
                   <button 
                     onClick={() => {
                       window.open('https://notes.ugcnetenglish.in/products/', '_blank');

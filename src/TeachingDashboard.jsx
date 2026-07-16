@@ -824,7 +824,21 @@ export default function TeachingDashboard() {
           </div>
 
           <div className="p-2 border-b border-slate-200 bg-white grid grid-cols-3 gap-1.5">
-            <button onClick={() => { setIsSpawning(true); setIsMediaBayOpen(false); setIsClassworkCreatorOpen(false); }} className="py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/80 rounded text-[10px] font-bold flex items-center justify-center gap-1 transition-all shadow-sm"><span>⚡</span> SLIDE</button>
+            <button onClick={() => { 
+  // Get the current slide's data so we can pre-fill the Spawner Form!
+  const currentSlide = lessonData[activeIdx] || {};
+  setSpawnForm({
+    paper_id: currentSlide.paper_id || 'Introduction',
+    chapter_title: currentSlide.chapter_title || '',
+    index_title: '', // Leave the new slide title blank for typing
+    required_plan: currentSlide.Required_Plan || currentSlide.required_plan || 'Free',
+    master_video: currentSlide.master_video || '',
+    video_timestamp: '' // Leave timestamp blank
+  });
+  setIsSpawning(true); 
+  setIsMediaBayOpen(false); 
+  setIsClassworkCreatorOpen(false); 
+}} className="py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/80 rounded text-[10px] font-bold flex items-center justify-center gap-1 transition-all shadow-sm"><span>⚡</span> SLIDE</button>
             <button onClick={() => { setIsMediaBayOpen(true); setIsSpawning(false); setIsClassworkCreatorOpen(false); }} className="py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200/80 rounded text-[10px] font-bold flex items-center justify-center gap-1 transition-all shadow-sm"><span>⚙️</span> MEDIA</button>
             <button onClick={() => { setIsClassworkCreatorOpen(true); setIsSpawning(false); setIsMediaBayOpen(false); setClassworkViewMode('manage'); }} className="py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/80 rounded text-[10px] font-bold flex items-center justify-center gap-1 transition-all shadow-sm"><span>✍️</span> TASK</button>
           </div>
